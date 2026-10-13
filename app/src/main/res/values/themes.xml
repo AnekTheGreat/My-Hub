@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The framework's own dark theme: no AndroidX, nothing to download, and the dialogs and
+         toasts inside the hub come out dark to match the screen. -->
+    <style name="Theme.MyHub" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/hub_bg</item>
+        <item name="android:statusBarColor">@color/hub_bg</item>
+        <item name="android:navigationBarColor">@color/hub_bg</item>
+        <item name="android:colorPrimary">@color/hub_bg</item>
+        <item name="android:colorAccent">@color/hub_accent</item>
+        <item name="android:textColorPrimary">@color/hub_ink</item>
+    </style>
+</resources>
