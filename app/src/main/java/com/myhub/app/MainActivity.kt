@@ -95,7 +95,7 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
         root.addView(TextView(this).apply {
-            text = "Tap a card to open its app \u00b7 press and hold to change what it opens"
+            text = "Tap a card to open its app · press and hold to change what it opens"
             setTextColor(MUTE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             gravity = Gravity.CENTER
@@ -112,6 +112,228 @@ class MainActivity : Activity() {
             if (pkg != null) found++
             list.addView(card(entry, pkg))
         }
-        summary.text = "${Apps.ALL.size} apps \u00b7 $found installed"
+        summary.text = "${Apps.ALL.size} apps · $found installed"
         if (found == 0) list.addView(note())
     }
+
+    private fun card(entry: HubApp, pkg: String?): View {
+        val here = pkg != null
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), dp(16), dp(12), dp(16))
+            background = rounded(if (here) CARD else CARD_MISSING, 20f)
+            isClickable = true
+            setOnClickListener { if (here) open(pkg!!) else pick(entry) }
+            setOnLongClickListener { menu(entry, pkg); true }
+        }
+        row.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { bottomMargin = dp(12) }
+
+        row.addView(icon(pkg, entry.title))
+
+        val details = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), 0, dp(8), 0)
+        }
+        details.addView(TextView(this).apply {
+            text = entry.title
+            setTextColor(if (here) INK else MUTE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        })
+        details.addView(TextView(this).apply {
+            text = if (here) entry.tagline else "Not installed · tap to point this card at an app"
+            setTextColor(MUTE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+            setPadding(0, dp(3), 0, 0)
+        })
+        if (here) {
+            details.addView(TextView(this).apply {
+                text = pkg
+                setTextColor(Color.parseColor("#5E7A93"))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+                setPadding(0, dp(4), 0, 0)
+            })
+        }
+        row.addView(details, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+
+        row.addView(action(entry, pkg))
+        return row
+    }
+
+    /** The app's own icon, or a lettered badge when the card has nothing to point at yet. */
+    private fun icon(pkg: String?, title: String): View {
+        val size = dp(52)
+        val view: View = if (pkg != null) {
+            ImageView(this).apply {
+                try {
+                    setImageDrawable(packageManager.getApplicationIcon(pkg))
+                } catch (e: Exception) {
+                    setImageDrawable(null)
+                }
+            }
+        } else {
+            TextView(this).apply {
+                text = title.trim().take(1).uppercase(Locale.ROOT)
+                setTextColor(MUTE)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+                gravity = Gravity.CENTER
+                typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                background = rounded(Color.parseColor("#1D3459"), 14f)
+            }
+        }
+        view.layoutParams = LinearLayout.LayoutParams(size, size)
+        return view
+    }
+
+    private fun action(entry: HubApp, pkg: String?): View {
+        val button = TextView(this).apply {
+            text = if (pkg != null) "▶" else "+"
+            gravity = Gravity.CENTER
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, if (pkg != null) 15f else 20f)
+            setTextColor(if (pkg != null) Color.WHITE else MUTE)
+            background = StateListDrawable().apply {
+                addState(
+                    intArrayOf(android.R.attr.state_pressed),
+                    rounded(if (pkg != null) Color.parseColor("#B51424") else Color.parseColor("#22344C"), 24f)
+                )
+                addState(
+                    intArrayOf(),
+                    rounded(if (pkg != null) ACCENT else Color.parseColor("#1B2A3F"), 24f)
+                )
+            }
+            isClickable = true
+            setOnClickListener { if (pkg != null) open(pkg) else pick(entry) }
+        }
+        button.layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
+        return button
+    }
+
+    private fun note() = TextView(this).apply {
+        text = "Nothing on this phone matches the three apps yet. Press and hold a card, or tap the + on one, to point it at an app that is installed."
+        setTextColor(MUTE)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+        setPadding(dp(6), dp(4), dp(6), dp(8))
+    }
+
+    // ---- what a card does ----
+
+    private fun open(pkg: String) {
+        val intent = packageManager.getLaunchIntentForPackage(pkg)
+        if (intent == null) {
+            toast("${Apps.appName(packageManager, pkg)} has no launch screen")
+            return
+        }
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            toast("Could not start ${Apps.appName(packageManager, pkg)}")
+        }
+    }
+
+    private fun menu(entry: HubApp, pkg: String?) {
+        val items = mutableListOf<String>()
+        if (pkg != null) items += "Open"
+        items += "Choose the app…"
+        if (pkg != null) items += "App info"
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+            .setTitle(entry.title)
+            .setItems(items.toTypedArray()) { _, which ->
+                when (items[which]) {
+                    "Open" -> open(pkg!!)
+                    "Choose the app…" -> pick(entry)
+                    "App info" -> appInfo(pkg!!)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    /** Point a card at any app on the phone, by hand, and remember it. */
+    private fun pick(entry: HubApp) {
+        val pm = packageManager
+        val apps = Apps.launchableApps(pm)
+            .map { it.activityInfo.packageName to Apps.label(pm, it) }
+            .distinctBy { it.first }
+            .sortedBy { it.second.lowercase(Locale.ROOT) }
+        if (apps.isEmpty()) {
+            toast("This phone is not showing any apps to choose from")
+            return
+        }
+        val shown = apps.map { "${it.second}\n${it.first}" }.toTypedArray()
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+            .setTitle("Open ${entry.title} with…")
+            .setItems(shown) { _, which ->
+                getSharedPreferences(Apps.PREFS, MODE_PRIVATE).edit()
+                    .putString(Apps.bindKey(entry), apps[which].first).apply()
+                fill()
+                toast("${entry.title} → ${apps[which].second}")
+            }
+            .setNeutralButton("Use the default") { _, _ ->
+                getSharedPreferences(Apps.PREFS, MODE_PRIVATE).edit()
+                    .remove(Apps.bindKey(entry)).apply()
+                fill()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun appInfo(pkg: String) {
+        try {
+            startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg"))
+            )
+        } catch (e: Exception) {
+            toast("No app info on this phone")
+        }
+    }
+
+    private fun settings() {
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+            .setTitle("My Hub")
+            .setItems(arrayOf("Refresh", "How the hub finds your apps")) { _, which ->
+                if (which == 0) {
+                    fill()
+                    toast("Checked again")
+                } else {
+                    about()
+                }
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun about() {
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+            .setTitle("How the hub finds your apps")
+            .setMessage(
+                "A card opens the app it found on this phone.\n\n" +
+                    "It looks for the apps it was built for by package name — FamTM is com.familytree.app " +
+                    "and SideCut is com.SideCut.myapp — and if that finds nothing it looks for an app " +
+                    "whose own name matches the card.\n\n" +
+                    "MeasureT has no package name published anywhere, so its card is most likely to need " +
+                    "pointing by hand: press and hold the card and choose the app. The choice is " +
+                    "remembered, and 'Use the default' on that screen puts it back to searching.\n\n" +
+                    "Nothing is sent anywhere: the hub only ever asks this phone what is installed."
+            )
+            .setPositiveButton("Got it", null)
+            .show()
+    }
+
+    private fun toast(message: String) =
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+
+    // ---- small helpers ----
+
+    private fun dp(value: Int): Int = TypedValue.applyDimension(
+        TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics
+    ).toInt()
+
+    private fun rounded(color: Int, radiusDp: Float) = GradientDrawable().apply {
+        setColor(color)
+        cornerRadius = dp(radiusDp.toInt()).toFloat()
+    }
+}
