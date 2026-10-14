@@ -7,6 +7,27 @@
       anywhere except the name of an app you picked by hand.
     -->
 
+    <!--
+      Android 11 (API 30) and later hide other installed apps from an app unless
+      it declares which ones it needs to see. This hub targets API 34 and had no
+      declaration, so on a modern phone every card resolved to nothing and the
+      hub behaved as though none of the apps were installed - the cards showed
+      "Not installed" on a phone where the apps really were. These entries make
+      the apps visible: each package by name, and the launcher intent so the
+      "Choose the app" picker and the by-name fallback can see the phone.
+      Still no runtime permission is requested.
+    -->
+    <queries>
+        <package android:name="com.familytree.app" />
+        <package android:name="com.SideCut.myapp" />
+        <package android:name="com.SideCut.myapp.full" />
+        <package android:name="com.measuret.app" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

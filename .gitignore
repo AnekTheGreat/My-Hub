@@ -11,3 +11,7 @@ build/
 .cxx
 *.apk
 *.aab
+
+# local build helper (not part of the app)
+build.sh
+gradle-build.log
