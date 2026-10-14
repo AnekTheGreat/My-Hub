@@ -33,9 +33,9 @@ The hub ships knowing which app each card is meant to be, and asks your phone fo
 | Card | Package it looks for | If that is not installed |
 | --- | --- | --- |
 | FamTM | `com.familytree.app` | looks for an app named FamTM or Family Tree |
-| SideCut | `com.SideCut.myapp` | looks for an app named "SideCut" |
+| SideCut | `com.SideCut.myapp` | looks for an app named "SideCut Play" or "SideCut" |
 | SideCut Full | `com.SideCut.myapp.full` | looks for an app named "SideCut Full" |
-| MeasureT | *(nothing known)* | looks for an app named "MeasureT" or "Measure" |
+| MeasureT | `com.CompassEDC.myapp` | looks for an app named "MeasureT", "Measure T", "Measure", "Compass EDC" or "CompassEDC" |
 
 SideCut is published twice from one pipeline, and the two builds are made to be installed side by
 side: the Play build is `com.SideCut.myapp` and named *SideCut*, and the sideloaded full build is
@@ -43,10 +43,15 @@ side: the Play build is `com.SideCut.myapp` and named *SideCut*, and the sideloa
 they get a card each — one card could only ever open one of them. If you have one of the two, the
 other card says so and offers the `+` to point it somewhere else.
 
-MeasureT's package name is not published anywhere, so its card is the one most likely to need a
-hand: **press and hold the card** and choose the app from a list of everything installed on the
-phone. The hub remembers the choice. On that same screen, *Use the default* puts the card back to
-searching by itself.
+MeasureT is built out of the Compass-EDC repository, and the applicationId that repository's
+Capacitor config gives the APK is `com.CompassEDC.myapp` — so that is the package its card looks
+for. The name it shipped under before it was renamed, *Compass EDC*, is looked for too, so a phone
+still carrying that install opens from the same card rather than from one that says there is
+nothing there.
+
+If a card still finds nothing at all, **press and hold it** and choose the app from a list of
+everything installed on the phone. The hub remembers the choice, and *Use the default* on that same
+screen puts the card back to searching by itself.
 
 The card also tells you where it stands: its app icon and package name when it found something,
 and *"Not installed · tap to point this card at an app"* with a `+` button when it did not. The
@@ -92,4 +97,4 @@ app/src/main/res/    colours, theme, settings gear, launcher icon
 
 ## Version
 
-`1.1.0` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 34 (Android 14).
+`1.1.1` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 34 (Android 14).

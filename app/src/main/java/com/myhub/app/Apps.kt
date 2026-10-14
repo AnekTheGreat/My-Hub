@@ -14,10 +14,10 @@ import java.util.Locale
  *   2. one of the package names below, in the order written,
  *   3. any launchable app whose own name matches one of [aliases].
  *
- * Step 3 is what lets a tile work when the package id was never known -- which is the case for
- * MeasureT, whose package id does not appear anywhere in its repository. Naming it by hand is
- * always available as a fallback, and a tile that still finds nothing says so rather than
- * pretending to launch something.
+ * Step 3 is what lets a tile work when the package id is not the one it was built with -- a build
+ * that was renamed, or an id that changed between releases. Naming it by hand is always available
+ * as a fallback, and a tile that still finds nothing says so rather than pretending to launch
+ * something.
  */
 data class HubApp(
     val id: String,
@@ -42,9 +42,12 @@ object Apps {
             id = "sidecut",
             title = "SideCut",
             tagline = "Your music player, from the Play Store",
-            // The Play build. Its applicationId is com.SideCut.myapp and its name is "SideCut".
-            packages = listOf("com.SideCut.myapp"),
-            aliases = listOf("SideCut")
+            // The Play build. Its applicationId is com.SideCut.myapp, and on the phone it lists
+            // itself as "SideCut Play". Looking for the name "SideCut" alone could never match
+            // that label, which is how this card ended up saying "Not installed" on a phone that
+            // had the app on it all along; the store name is looked for first now.
+            packages = listOf("com.SideCut.myapp", "com.SideCut.play"),
+            aliases = listOf("SideCut Play", "SideCut")
         ),
         HubApp(
             id = "sidecutfull",
@@ -62,10 +65,22 @@ object Apps {
             id = "measuret",
             title = "MeasureT",
             tagline = "Measure anything",
-            // No package id for MeasureT is published anywhere, so the name is the only lead and
-            // the tile is happily bound by hand instead.
-            packages = listOf("com.measuret.app", "com.measuret", "com.measuret.android"),
-            aliases = listOf("MeasureT", "Measure T", "Measure")
+            // MeasureT is built out of the Compass-EDC repository, and the applicationId that
+            // repository's Capacitor config hands the APK is com.CompassEDC.myapp -- the one
+            // package name that really exists on a phone. It is looked for FIRST, because the
+            // com.measuret.* guesses below were never what the build installed under, which is
+            // why this card used to come up empty on a phone that already had MeasureT.
+            packages = listOf(
+                "com.CompassEDC.myapp",
+                "com.measuret.app",
+                "com.measure.4",
+                "com.measuret.android"
+            ),
+            // "Compass EDC" is this same app under the name it shipped with before it was
+            // renamed: a phone still carrying that install is still carrying MeasureT, so the
+            // card opens it rather than claiming there is nothing to open. It sits last, so a
+            // build that has moved to the new name always wins.
+            aliases = listOf("MeasureT", "Measure T", "Measure", "Compass EDC", "CompassEDC")
         )
     )
 
