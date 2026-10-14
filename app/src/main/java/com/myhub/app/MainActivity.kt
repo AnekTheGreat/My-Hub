@@ -95,7 +95,7 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
         root.addView(TextView(this).apply {
-            text = "Tap a card to open its app · press and hold to change what it opens"
+            text = "Tap a card to open its app \u00b7 press and hold to change what it opens"
             setTextColor(MUTE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             gravity = Gravity.CENTER
@@ -112,7 +112,7 @@ class MainActivity : Activity() {
             if (pkg != null) found++
             list.addView(card(entry, pkg))
         }
-        summary.text = "${Apps.ALL.size} apps · $found installed"
+        summary.text = "${Apps.ALL.size} apps \u00b7 $found installed"
         if (found == 0) list.addView(note())
     }
 
@@ -144,7 +144,7 @@ class MainActivity : Activity() {
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         })
         details.addView(TextView(this).apply {
-            text = if (here) entry.tagline else "Not installed · tap to point this card at an app"
+            text = if (here) entry.tagline else "Not installed \u00b7 tap to point this card at an app"
             setTextColor(MUTE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
             setPadding(0, dp(3), 0, 0)
@@ -317,8 +317,11 @@ class MainActivity : Activity() {
                     "name matches the card.\n\n" +
                     "SideCut is published twice, so it has two cards: the Play build and the sideloaded " +
                     "full build are separate apps on this phone and each card opens its own.\n\n" +
-                    "MeasureT has no package name published anywhere, so its card is most likely to need " +
-                    "pointing by hand: press and hold the card and choose the app. The choice is " +
+                    "MeasureT is built from the Compass-EDC repository and installs as " +
+                    "com.CompassEDC.myapp, so that is the package its card looks for first \u2014 and " +
+                    "if this phone carries it under the name it shipped with before, Compass EDC, " +
+                    "the card opens it just the same. A card that finds nothing can be pointed at " +
+                    "any app: press and hold it and choose the one you want. The choice is " +
                     "remembered, and 'Use the default' on that screen puts it back to searching.\n\n" +
                     "Nothing is sent anywhere: the hub only ever asks this phone what is installed."
             )
