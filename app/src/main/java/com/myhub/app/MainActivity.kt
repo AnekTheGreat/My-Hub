@@ -190,7 +190,7 @@ class MainActivity : Activity() {
 
     private fun action(entry: HubApp, pkg: String?): View {
         val button = TextView(this).apply {
-            text = if (pkg != null) "▶" else "+"
+            text = if (pkg != null) "\u25B6" else "+"
             gravity = Gravity.CENTER
             setTextSize(TypedValue.COMPLEX_UNIT_SP, if (pkg != null) 15f else 20f)
             setTextColor(if (pkg != null) Color.WHITE else MUTE)
@@ -212,7 +212,7 @@ class MainActivity : Activity() {
     }
 
     private fun note() = TextView(this).apply {
-        text = "Nothing on this phone matches the three apps yet. Press and hold a card, or tap the + on one, to point it at an app that is installed."
+        text = "Nothing on this phone matches these apps yet. Press and hold a card, or tap the + on one, to point it at an app that is installed."
         setTextColor(MUTE)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
         setPadding(dp(6), dp(4), dp(6), dp(8))
@@ -237,14 +237,14 @@ class MainActivity : Activity() {
     private fun menu(entry: HubApp, pkg: String?) {
         val items = mutableListOf<String>()
         if (pkg != null) items += "Open"
-        items += "Choose the app…"
+        items += "Choose the app\u2026"
         if (pkg != null) items += "App info"
         AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
             .setTitle(entry.title)
             .setItems(items.toTypedArray()) { _, which ->
                 when (items[which]) {
                     "Open" -> open(pkg!!)
-                    "Choose the app…" -> pick(entry)
+                    "Choose the app\u2026" -> pick(entry)
                     "App info" -> appInfo(pkg!!)
                 }
             }
@@ -265,12 +265,12 @@ class MainActivity : Activity() {
         }
         val shown = apps.map { "${it.second}\n${it.first}" }.toTypedArray()
         AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
-            .setTitle("Open ${entry.title} with…")
+            .setTitle("Open ${entry.title} with\u2026")
             .setItems(shown) { _, which ->
                 getSharedPreferences(Apps.PREFS, MODE_PRIVATE).edit()
                     .putString(Apps.bindKey(entry), apps[which].first).apply()
                 fill()
-                toast("${entry.title} → ${apps[which].second}")
+                toast("${entry.title} \u2192 ${apps[which].second}")
             }
             .setNeutralButton("Use the default") { _, _ ->
                 getSharedPreferences(Apps.PREFS, MODE_PRIVATE).edit()
@@ -311,9 +311,12 @@ class MainActivity : Activity() {
             .setTitle("How the hub finds your apps")
             .setMessage(
                 "A card opens the app it found on this phone.\n\n" +
-                    "It looks for the apps it was built for by package name — FamTM is com.familytree.app " +
-                    "and SideCut is com.SideCut.myapp — and if that finds nothing it looks for an app " +
-                    "whose own name matches the card.\n\n" +
+                    "It looks for the apps it was built for by package name \u2014 FamTM is com.familytree.app, " +
+                    "SideCut is com.SideCut.myapp, and the sideloaded SideCut Full is " +
+                    "com.SideCut.myapp.full \u2014 and if that finds nothing it looks for an app whose own " +
+                    "name matches the card.\n\n" +
+                    "SideCut is published twice, so it has two cards: the Play build and the sideloaded " +
+                    "full build are separate apps on this phone and each card opens its own.\n\n" +
                     "MeasureT has no package name published anywhere, so its card is most likely to need " +
                     "pointing by hand: press and hold the card and choose the app. The choice is " +
                     "remembered, and 'Use the default' on that screen puts it back to searching.\n\n" +
