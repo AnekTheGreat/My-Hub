@@ -73,7 +73,7 @@ object Apps {
             packages = listOf(
                 "com.CompassEDC.myapp",
                 "com.measuret.app",
-                "com.measure.4",
+                "com.measuret",
                 "com.measuret.android"
             ),
             // "Compass EDC" is this same app under the name it shipped with before it was

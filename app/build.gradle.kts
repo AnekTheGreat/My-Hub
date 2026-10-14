@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.myhub.app"
-        minDk = 21
+        minSdk = 21
         targetSdk = 34
         versionCode = 3
         versionName = "1.1.1"
