@@ -1,14 +1,15 @@
 # My Hub
 
-One dark screen that launches all three of your apps from one place, modelled on the **OnePlus
-Game Space / Game Hub**: the same navy field, the same list of big rounded cards, an icon and a
-name on the left and a red launch button on the right. Only yours are your apps instead of games.
+One dark screen that launches your apps from one place, modelled on the **OnePlus Game Space /
+Game Hub**: the same navy field, the same list of big rounded cards, an icon and a name on the left
+and a red launch button on the right. Only yours are your apps instead of games.
 
 | Card | What it opens |
 | --- | --- |
-| **MeasureT** | the MeasureT APK |
-| **SideCut** | the SideCut APK |
 | **FamTM** | the FamTM APK |
+| **SideCut** | the SideCut APK, the Play build |
+| **SideCut Full** | the SideCut APK, the sideloaded full build |
+| **MeasureT** | the MeasureT APK |
 
 Tapping a card opens that app. Coming back to the hub puts you back at the top of the list, ready
 to open the next one.
@@ -32,8 +33,15 @@ The hub ships knowing which app each card is meant to be, and asks your phone fo
 | Card | Package it looks for | If that is not installed |
 | --- | --- | --- |
 | FamTM | `com.familytree.app` | looks for an app named FamTM or Family Tree |
-| SideCut | `com.SideCut.myapp`, then `com.SideCut.myapp.full` | looks for an app named "SideCut" |
+| SideCut | `com.SideCut.myapp` | looks for an app named "SideCut" |
+| SideCut Full | `com.SideCut.myapp.full` | looks for an app named "SideCut Full" |
 | MeasureT | *(nothing known)* | looks for an app named "MeasureT" or "Measure" |
+
+SideCut is published twice from one pipeline, and the two builds are made to be installed side by
+side: the Play build is `com.SideCut.myapp` and named *SideCut*, and the sideloaded full build is
+`com.SideCut.myapp.full` and named *SideCut Full*. Because they are two separate apps on the phone,
+they get a card each — one card could only ever open one of them. If you have one of the two, the
+other card says so and offers the `+` to point it somewhere else.
 
 MeasureT's package name is not published anywhere, so its card is the one most likely to need a
 hand: **press and hold the card** and choose the app from a list of everything installed on the
@@ -42,7 +50,7 @@ searching by itself.
 
 The card also tells you where it stands: its app icon and package name when it found something,
 and *"Not installed · tap to point this card at an app"* with a `+` button when it did not. The
-line under the title counts how many of the three are installed.
+line under the title counts how many of the cards found their app.
 
 Press and hold any card for **Open**, **Choose the app…** and **App info**, and use the gear in the
 top right for **Refresh** and a short explanation of the whole thing.
@@ -76,7 +84,7 @@ unsigned.
 
 ```
 app/src/main/java/com/myhub/app/
-    Apps.kt          the three apps, how each is found, and the remembered choice
+    Apps.kt          the apps, how each is found, and the remembered choice
     MainActivity.kt  the hub screen, its cards, and the picker
 app/src/main/res/    colours, theme, settings gear, launcher icon
 .github/workflows/   builds the APK on every push
@@ -84,4 +92,4 @@ app/src/main/res/    colours, theme, settings gear, launcher icon
 
 ## Version
 
-`1.0.0` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 34 (Android 14).
+`1.1.0` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 34 (Android 14).
