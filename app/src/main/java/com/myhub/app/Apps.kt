@@ -29,7 +29,7 @@ data class HubApp(
 
 object Apps {
 
-    /** The three apps this hub was built for. */
+    /** Every app this hub carries a card for. */
     val ALL: List<HubApp> = listOf(
         HubApp(
             id = "famTM",
@@ -41,9 +41,22 @@ object Apps {
         HubApp(
             id = "sidecut",
             title = "SideCut",
-            tagline = "Your music player",
-            packages = listOf("com.SideCut.myapp", "com.SideCut.myapp.full"),
-            aliases = listOf("SideCut", "SideCut Full")
+            tagline = "Your music player, from the Play Store",
+            // The Play build. Its applicationId is com.SideCut.myapp and its name is "SideCut".
+            packages = listOf("com.SideCut.myapp"),
+            aliases = listOf("SideCut")
+        ),
+        HubApp(
+            id = "sidecutfull",
+            title = "SideCut Full",
+            tagline = "Your music player, the sideloaded build",
+            // SideCut is published twice from one pipeline: the Play build above, and this one — the
+            // complete build, sideloaded only. It is given its own applicationId and its own name
+            // exactly so the two can be installed side by side, so each gets a card of its own here:
+            // one card that opened whichever happened to be installed would always have opened the
+            // Play build and left this one unreachable.
+            packages = listOf("com.SideCut.myapp.full"),
+            aliases = listOf("SideCut Full")
         ),
         HubApp(
             id = "measuret",
