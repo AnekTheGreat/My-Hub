@@ -95,7 +95,7 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
         root.addView(TextView(this).apply {
-            text = "Tap a card to open its app \u00b7 press and hold to change what it opens"
+            text = "Tap a card to open its app · press and hold to change what it opens"
             setTextColor(MUTE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             gravity = Gravity.CENTER
@@ -112,7 +112,7 @@ class MainActivity : Activity() {
             if (pkg != null) found++
             list.addView(card(entry, pkg))
         }
-        summary.text = "${Apps.ALL.size} apps \u00b7 $found installed"
+        summary.text = "${Apps.ALL.size} apps · $found installed"
         if (found == 0) list.addView(note())
     }
 
@@ -144,7 +144,7 @@ class MainActivity : Activity() {
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         })
         details.addView(TextView(this).apply {
-            text = if (here) entry.tagline else "Not installed \u00b7 tap to point this card at an app"
+            text = if (here) entry.tagline else "Not installed · tap to point this card at an app"
             setTextColor(MUTE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
             setPadding(0, dp(3), 0, 0)
