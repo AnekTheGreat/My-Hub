@@ -138,3 +138,99 @@ object Apps {
     private fun norm(s: String) =
         s.lowercase(Locale.ROOT).replace(" ", "").replace("_", "").replace("-", "")
 }
+
+/**
+ * How long each card's app was actually on screen, measured from the hub.
+ *
+ * Tapping a card is the start of a session: the hub writes down which app it just handed you to,
+ * and banks the elapsed time the next time the hub is resumed - which is when you came back from
+ * that app. There is no timer and nothing runs in the background, so the number can only ever be
+ * time you spent in an app you opened from here. The pending session is written to disk as well
+ * as memory, so a phone that kills the hub while you are away still counts the whole visit when
+ * you return.
+ *
+ * A total is per card, not per package: SideCut and SideCut Full are two cards and are timed
+ * separately, exactly as they are two apps on the phone.
+ */
+object Usage {
+
+    private const val KEY_TOTAL = "usage.total."
+    private const val KEY_LAST = "usage.last."
+    private const val KEY_COUNT = "usage.count."
+    private const val KEY_PENDING_ID = "usage.pending.id"
+    private const val KEY_PENDING_AT = "usage.pending.at"
+
+    private fun prefs(ctx: Context) = ctx.getSharedPreferences(Apps.PREFS, Context.MODE_PRIVATE)
+
+    /** The hub is leaving for [entry]'s app now; remember the card and the moment. */
+    fun started(ctx: Context, entry: HubApp) {
+        prefs(ctx).edit()
+            .putString(KEY_PENDING_ID, entry.id)
+            .putLong(KEY_PENDING_AT, System.currentTimeMillis())
+            .apply()
+    }
+
+    /**
+     * The hub came back. If a session is open, bank it: the visit was from the moment the card
+     * was tapped to now, and that now is also the card's "last opened". A clock that went
+     * backwards (or a session that never recorded a start) banks nothing rather than a negative.
+     */
+    fun returned(ctx: Context) {
+        val p = prefs(ctx)
+        val id = p.getString(KEY_PENDING_ID, null) ?: return
+        val at = p.getLong(KEY_PENDING_AT, 0L)
+        p.edit().remove(KEY_PENDING_ID).remove(KEY_PENDING_AT).apply()
+        val now = System.currentTimeMillis()
+        if (at <= 0L || now <= at) return
+        p.edit()
+            .putLong(KEY_TOTAL + id, total(ctx, id) + (now - at))
+            .putLong(KEY_LAST + id, now)
+            .putInt(KEY_COUNT + id, count(ctx, id) + 1)
+            .apply()
+    }
+
+    fun total(ctx: Context, id: String): Long = prefs(ctx).getLong(KEY_TOTAL + id, 0L)
+    fun last(ctx: Context, id: String): Long = prefs(ctx).getLong(KEY_LAST + id, 0L)
+    fun count(ctx: Context, id: String): Int = prefs(ctx).getInt(KEY_COUNT + id, 0)
+
+    fun totalAll(ctx: Context): Long = Apps.ALL.sumOf { total(ctx, it.id) }
+
+    fun forget(ctx: Context, id: String) {
+        prefs(ctx).edit()
+            .remove(KEY_TOTAL + id).remove(KEY_LAST + id).remove(KEY_COUNT + id)
+            .apply()
+    }
+
+    fun forgetAll(ctx: Context) {
+        val edit = prefs(ctx).edit()
+        for (app in Apps.ALL) {
+            edit.remove(KEY_TOTAL + app.id).remove(KEY_LAST + app.id).remove(KEY_COUNT + app.id)
+        }
+        edit.apply()
+    }
+
+    /** "1h 24m", "7m", "<1m" - the shape a total is read in. Minutes are the smallest unit kept. */
+    fun human(ms: Long): String {
+        val mins = ms / 60_000L
+        val h = mins / 60L
+        val m = mins % 60L
+        return when {
+            h > 0L -> "${h}h ${m}m"
+            mins > 0L -> "${mins}m"
+            else -> "<1m"
+        }
+    }
+
+    /** "just now", "3h ago", "2d ago" - when a card's app was last opened from the hub, or null. */
+    fun ago(ctx: Context, id: String): String? {
+        val last = last(ctx, id)
+        if (last <= 0L) return null
+        val mins = (System.currentTimeMillis() - last) / 60_000L
+        return when {
+            mins < 1L -> "just now"
+            mins < 60L -> "${mins}m ago"
+            mins < 60L * 24L -> "${mins / 60L}h ago"
+            else -> "${mins / (60L * 24L)}d ago"
+        }
+    }
+}

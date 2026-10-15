@@ -2,10 +2,35 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-      The hub asks the phone what is installed and starts other apps. Both of those are allowed
-      without any permission, so this app requests none. Nothing is read, sent, or stored
-      anywhere except the name of an app you picked by hand.
+      The hub asks the phone what is installed and starts other apps. Neither needs a permission,
+      so this app still requests none. Nothing is read, sent, or stored anywhere except the name
+      of an app you picked by hand and how long each card's app stayed open.
     -->
+
+    <!--
+      WITHOUT THIS BLOCK THE HUB CANNOT SEE ANYTHING ON ANDROID 11 OR LATER.
+      From API 30 the system hides other packages from an app unless it asks for them, and the
+      asking is done here, in the manifest, not at runtime: getLaunchIntentForPackage() and
+      queryIntentActivities() quietly answer with nothing for a package the app cannot see. That
+      is what left every card reading "Not installed" on a phone that had all the apps on it, and
+      what stopped a card that did find its app from starting it.
+
+      The intent below is the launcher signature: declaring it makes every app with a launcher
+      icon visible, which is exactly the set a hub wants - the cards' own apps and the "choose the
+      app" list are both built from it. It is the purpose-built alternative to QUERY_ALL_PACKAGES,
+      which asks for far more than this needs. The four packages are named outright as well, so a
+      build that is present but has no launcher activity of its own is still visible to its card.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <package android:name="com.familytree.app" />
+        <package android:name="com.SideCut.myapp" />
+        <package android:name="com.SideCut.myapp.full" />
+        <package android:name="com.CompassEDC.myapp" />
+    </queries>
 
     <application
         android:allowBackup="true"
