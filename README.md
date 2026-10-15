@@ -63,11 +63,36 @@ top right for **Refresh** and a short explanation of the whole thing.
 ## What it does not do
 
 - **No permissions.** Asking your phone what is installed and starting another app are both allowed
-  without one, so the hub requests none.
+  without one, so the hub requests none. It does declare `<queries>` in the manifest, which is not a
+  permission but the API 30+ way of saying which apps it is allowed to *see* — see below.
 - **No network.** There is no internet permission in the manifest, so nothing can be sent anywhere.
 - **No libraries.** No AndroidX, no Compose, no third-party code — the APK is a few hundred KB of
-  framework calls, and the only thing it keeps is the name of an app you picked by hand, if you
-  ever picked one.
+  framework calls, and the only things it keeps are the name of an app you picked by hand (if you
+  ever picked one) and how long each card's app stayed open.
+
+## Seeing the apps at all (Android 11 and later)
+
+From API 30 the system hides other packages from an app unless the app says, in its manifest, which
+ones it wants to see. Without that, `getLaunchIntentForPackage()` and `queryIntentActivities()` do
+not fail — they quietly answer with nothing, which is how every card first came up saying *Not
+installed* on a phone that had all four apps on it, and how a card that had found its app still
+could not start it.
+
+The manifest therefore carries a `<queries>` block that declares the launcher signature
+(`MAIN` + `LAUNCHER`), which makes every app with a launcher icon visible — exactly the set the cards
+and the *Choose the app…* list are built from — plus the four package names outright. It is the
+purpose-built alternative to `QUERY_ALL_PACKAGES`, which asks for far more than this needs.
+
+## Time on each app
+
+Every card shows how long its app has been open. The clock starts the moment you leave the hub for
+an app and stops the moment you come back, so the number is time you actually spent in an app you
+opened from here — there is no timer and nothing runs while the hub is closed. A card also says
+*over how many visits* the time was earned, and when it was last opened from the hub.
+
+The header counts all of it up: *“4 apps · 3 installed · 2h 14m in them”*. Press and hold a card for
+**Reset this app's time**, or use the gear for **Reset all tracked time**. A card that has never been
+opened from the hub says *Not opened from the hub yet* rather than showing a zero.
 
 ## Building
 
@@ -89,12 +114,12 @@ unsigned.
 
 ```
 app/src/main/java/com/myhub/app/
-    Apps.kt          the apps, how each is found, and the remembered choice
-    MainActivity.kt  the hub screen, its cards, and the picker
+    Apps.kt          the apps, how each is found, the remembered choice, and the time kept
+    MainActivity.kt  the hub screen, its cards, the picker, and the clock
 app/src/main/res/    colours, theme, settings gear, launcher icon
 .github/workflows/   builds the APK on every push
 ```
 
 ## Version
 
-`1.1.1` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 34 (Android 14).
+`1.2.0` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 34 (Android 14).

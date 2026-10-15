@@ -40,9 +40,12 @@ class MainActivity : Activity() {
     }
 
     // Coming back to the hub is also when an app may have been installed or removed, so the whole
-    // screen is worked out again rather than trusting what it looked like last time.
+    // screen is worked out again rather than trusting what it looked like last time. It is also
+    // the one moment the visit that just ended can be measured: the hub left because a card opened
+    // an app, and this is the return, so the clock on that app is banked before anything is drawn.
     override fun onResume() {
         super.onResume()
+        Usage.returned(this)
         fill()
     }
 
@@ -112,7 +115,12 @@ class MainActivity : Activity() {
             if (pkg != null) found++
             list.addView(card(entry, pkg))
         }
-        summary.text = "${Apps.ALL.size} apps · $found installed"
+        val tracked = Usage.totalAll(this)
+        summary.text = if (tracked > 0L) {
+            "${Apps.ALL.size} apps · $found installed · ${Usage.human(tracked)} in them"
+        } else {
+            "${Apps.ALL.size} apps · $found installed"
+        }
         if (found == 0) list.addView(note())
     }
 
@@ -124,7 +132,7 @@ class MainActivity : Activity() {
             setPadding(dp(16), dp(16), dp(12), dp(16))
             background = rounded(if (here) CARD else CARD_MISSING, 20f)
             isClickable = true
-            setOnClickListener { if (here) open(pkg!!) else pick(entry) }
+            setOnClickListener { if (here) open(entry, pkg!!) else pick(entry) }
             setOnLongClickListener { menu(entry, pkg); true }
         }
         row.layoutParams = LinearLayout.LayoutParams(
@@ -155,6 +163,15 @@ class MainActivity : Activity() {
                 setTextColor(Color.parseColor("#5E7A93"))
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
                 setPadding(0, dp(4), 0, 0)
+            })
+            // The time card: how long this app has been on screen across the visits made from
+            // here. A card that has never been opened from the hub says so instead of showing 0m.
+            val tracked = Usage.total(this@MainActivity, entry.id)
+            details.addView(TextView(this).apply {
+                text = usageLine(entry)
+                setTextColor(Color.parseColor(if (tracked > 0L) "#63C6A6" else "#4E6B84"))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
+                setPadding(0, dp(5), 0, 0)
             })
         }
         row.addView(details, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -205,7 +222,7 @@ class MainActivity : Activity() {
                 )
             }
             isClickable = true
-            setOnClickListener { if (pkg != null) open(pkg) else pick(entry) }
+            setOnClickListener { if (pkg != null) open(entry, pkg) else pick(entry) }
         }
         button.layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
         return button
@@ -220,7 +237,7 @@ class MainActivity : Activity() {
 
     // ---- what a card does ----
 
-    private fun open(pkg: String) {
+    private fun open(entry: HubApp, pkg: String) {
         val intent = packageManager.getLaunchIntentForPackage(pkg)
         if (intent == null) {
             toast("${Apps.appName(packageManager, pkg)} has no launch screen")
@@ -229,9 +246,22 @@ class MainActivity : Activity() {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
             startActivity(intent)
+            // The hub is on its way out; this is the moment the visit's clock starts. It is only
+            // written after the app actually started, so a launch that failed is never timed.
+            Usage.started(this, entry)
         } catch (e: Exception) {
             toast("Could not start ${Apps.appName(packageManager, pkg)}")
         }
+    }
+
+    /** "2h 14m over 3 visits · last opened 4h ago", or an invitation when a card is a stranger. */
+    private fun usageLine(entry: HubApp): String {
+        val total = Usage.total(this, entry.id)
+        if (total <= 0L) return "Not opened from the hub yet"
+        val visits = Usage.count(this, entry.id)
+        val visitWord = if (visits == 1) "visit" else "visits"
+        val since = Usage.ago(this, entry.id)?.let { " · last opened $it" } ?: ""
+        return "${Usage.human(total)} over $visits $visitWord$since"
     }
 
     private fun menu(entry: HubApp, pkg: String?) {
@@ -239,13 +269,19 @@ class MainActivity : Activity() {
         if (pkg != null) items += "Open"
         items += "Choose the app\u2026"
         if (pkg != null) items += "App info"
+        if (pkg != null && Usage.total(this, entry.id) > 0L) items += "Reset this app's time"
         AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
             .setTitle(entry.title)
             .setItems(items.toTypedArray()) { _, which ->
                 when (items[which]) {
-                    "Open" -> open(pkg!!)
+                    "Open" -> open(entry, pkg!!)
                     "Choose the app\u2026" -> pick(entry)
                     "App info" -> appInfo(pkg!!)
+                    "Reset this app's time" -> {
+                        Usage.forget(this, entry.id)
+                        fill()
+                        toast("Cleared ${entry.title}'s time")
+                    }
                 }
             }
             .setNegativeButton("Cancel", null)
@@ -294,15 +330,36 @@ class MainActivity : Activity() {
     private fun settings() {
         AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
             .setTitle("My Hub")
-            .setItems(arrayOf("Refresh", "How the hub finds your apps")) { _, which ->
-                if (which == 0) {
-                    fill()
-                    toast("Checked again")
-                } else {
-                    about()
+            .setItems(
+                arrayOf("Refresh", "How the hub finds your apps", "Reset all tracked time")
+            ) { _, which ->
+                when (which) {
+                    0 -> {
+                        fill()
+                        toast("Checked again")
+                    }
+                    1 -> about()
+                    else -> confirmReset()
                 }
             }
             .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun confirmReset() {
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+            .setTitle("Reset all tracked time")
+            .setMessage(
+                "Every card's total goes back to zero and each one reads \"Not opened from the hub " +
+                    "yet\" again. Nothing else changes: the apps themselves, and which app each card " +
+                    "opens, are untouched."
+            )
+            .setPositiveButton("Reset") { _, _ ->
+                Usage.forgetAll(this)
+                fill()
+                toast("Tracked time cleared")
+            }
+            .setNegativeButton("Cancel", null)
             .show()
     }
 
@@ -323,7 +380,11 @@ class MainActivity : Activity() {
                     "the card opens it just the same. A card that finds nothing can be pointed at " +
                     "any app: press and hold it and choose the one you want. The choice is " +
                     "remembered, and 'Use the default' on that screen puts it back to searching.\n\n" +
-                    "Nothing is sent anywhere: the hub only ever asks this phone what is installed."
+                    "Nothing is sent anywhere: the hub only ever asks this phone what is installed.\n\n" +
+                    "Each card also carries how long that app has been open. The clock runs from the " +
+                    "moment you leave the hub for an app to the moment you come back, which is time " +
+                    "you actually spent there, and nothing runs while the hub is closed. Press and " +
+                    "hold a card to clear one card's time, or use Reset all tracked time here."
             )
             .setPositiveButton("Got it", null)
             .show()
