@@ -31,6 +31,11 @@ jobs:
       - name: Build the debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
 
+      # The card's time is arithmetic on the usage log; it has its own check and it runs here,
+      # on the same Kotlin the APK was just built with.
+      - name: Check the time arithmetic
+        run: sh dev/check-usage-sum.sh
+
       - name: Upload the APK
         uses: actions/upload-artifact@v4
         with:
