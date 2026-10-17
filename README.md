@@ -62,9 +62,11 @@ top right for **Refresh** and a short explanation of the whole thing.
 
 ## What it does not do
 
-- **No permissions.** Asking your phone what is installed and starting another app are both allowed
-  without one, so the hub requests none. It does declare `<queries>` in the manifest, which is not a
-  permission but the API 30+ way of saying which apps it is allowed to *see* — see below.
+- **No runtime permissions.** Asking your phone what is installed and starting another app are both
+  allowed without one. The hub does declare `<queries>` in the manifest, which is not a permission
+  but the API 30+ way of saying which apps it is allowed to *see* — and it asks for **Usage access**,
+  a one-off switch in Settings rather than a prompt, so it can read how long an app was in front.
+  With the switch off, no time is recorded and nothing is guessed — see below.
 - **No network.** There is no internet permission in the manifest, so nothing can be sent anywhere.
 - **No libraries.** No AndroidX, no Compose, no third-party code — the APK is a few hundred KB of
   framework calls, and the only things it keeps are the name of an app you picked by hand (if you
@@ -85,12 +87,24 @@ purpose-built alternative to `QUERY_ALL_PACKAGES`, which asks for far more than 
 
 ## Time on each app
 
-Every card shows how long its app has been open. The clock starts the moment you leave the hub for
-an app and stops the moment you come back, so the number is time you actually spent in an app you
-opened from here — there is no timer and nothing runs while the hub is closed. A card also says
-*over how many visits* the time was earned, and when it was last opened from the hub.
+Every card shows how long its app was **actually in front of you**, taken from the phone's own usage
+log between the moment you left the hub for that app and the moment you came back. The log stops
+counting when the screen does or when you move to something else, so a night's sleep, or a detour
+through another app, is not charged to the card. A card also says *over how many visits* the time
+was earned, and when it was last opened from the hub.
 
-The header counts all of it up: *“4 apps · 3 installed · 2h 14m in them”*. Press and hold a card for
+That read needs **Usage access**, which is one switch, not a permission dialog: the line on any card
+that has no time yet, or the gear, opens Settings → Usage access, where **My Hub** is turned on.
+Until it is on, nothing is recorded and the card offers the switch — the hub never fills the gap
+with a guess.
+
+Why it is built this way: the first version measured the same visit with a clock, from the tap to
+the moment the hub came back. That clock kept running while the phone slept and while you used
+something else, and a card that was tapped once and returned to the next morning claimed hours. The
+version that added the usage log clears those old totals once, on first run, because they cannot be
+separated from time that was never spent.
+
+The header counts it all up: *“4 apps · 4 installed · 2h 14m in them”*. Press and hold a card for
 **Reset this app's time**, or use the gear for **Reset all tracked time**. A card that has never been
 opened from the hub says *Not opened from the hub yet* rather than showing a zero.
 
@@ -110,12 +124,22 @@ rather use `./gradlew` locally. Android Studio can also just open the folder.
 To build a release APK you will need your own keystore; the release build type is there but
 unsigned.
 
+The arithmetic that turns usage-log lines into a card's time lives in `UsageSum.kt` with no Android
+dependency, so it has its own check — the overnight, detour and launch-line cases included:
+
+```bash
+sh dev/check-usage-sum.sh
+# usage-sum: 10 passed, 0 failed
+```
+
 ## Layout
 
 ```
 app/src/main/java/com/myhub/app/
     Apps.kt          the apps, how each is found, the remembered choice, and the time kept
+    UsageSum.kt      the usage-log arithmetic, kept Android-free so dev/ can check it
     MainActivity.kt  the hub screen, its cards, the picker, and the clock
+ dev/               the time arithmetic's own check
 app/src/main/res/    colours, theme, settings gear, launcher icon
 .github/workflows/   builds the APK on every push
 ```

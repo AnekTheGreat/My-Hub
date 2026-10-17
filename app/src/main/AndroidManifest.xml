@@ -2,10 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-      The hub asks the phone what is installed and starts other apps. Neither needs a permission,
-      so this app still requests none. Nothing is read, sent, or stored anywhere except the name
-      of an app you picked by hand and how long each card's app stayed open.
+      The hub asks the phone what is installed and starts other apps. Neither needs a permission.
+      The one thing it does ask for is Usage access, and that is not a runtime permission: it is a
+      switch the owner turns on once, in Settings, that lets the hub read how long another app was
+      in front. Without the switch nothing is recorded and no number is invented; the card offers
+      the switch instead. Nothing is read, sent, or stored anywhere except the name of an app you
+      picked by hand and the time each card's app was actually on screen.
     -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
 
     <!--
       WITHOUT THIS BLOCK THE HUB CANNOT SEE ANYTHING ON ANDROID 11 OR LATER.

@@ -1,9 +1,14 @@
 package com.myhub.app
 
+import android.app.AppOpsManager
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
+import android.os.Build
+import android.os.Process
 import java.util.Locale
 
 /**
@@ -140,17 +145,25 @@ object Apps {
 }
 
 /**
- * How long each card's app was actually on screen, measured from the hub.
+ * How long each card's app was actually in front of you.
  *
- * Tapping a card is the start of a session: the hub writes down which app it just handed you to,
- * and banks the elapsed time the next time the hub is resumed - which is when you came back from
- * that app. There is no timer and nothing runs in the background, so the number can only ever be
- * time you spent in an app you opened from here. The pending session is written to disk as well
- * as memory, so a phone that kills the hub while you are away still counts the whole visit when
- * you return.
+ * Tapping a card is the start of a session; coming back to the hub ends it. What the session is
+ * worth is asked of the phone's own usage log: the app's foreground time between those two
+ * moments. That is the number that was missing.
  *
- * A total is per card, not per package: SideCut and SideCut Full are two cards and are timed
- * separately, exactly as they are two apps on the phone.
+ * The first attempt measured the same session with a clock - the time from the tap to the moment
+ * the hub came back - and it was wrong by hours. The clock does not stop when the screen does: tap
+ * SideCut at eleven at night, come back to the hub the next morning, and the card claimed nine
+ * hours in a music player. It also counted a bus ride spent in a different app. The phone's log
+ * knows the app was in front and knows when it stopped, so a session is now worth exactly that.
+ *
+ * Reading the log needs Usage access, a one-off switch in Settings, not a permission prompt. With
+ * it off nothing is guessed: no time is banked and the card offers the switch instead. Totals that
+ * the old clock wrote are cleared once, on the first run of this version, because they cannot be
+ * separated from the hours that were never spent.
+ *
+ * Nothing runs in the background: the log is read once, when the hub is resumed. A total is per
+ * card, not per package: SideCut and SideCut Full are two cards and are timed separately.
  */
 object Usage {
 
@@ -158,35 +171,109 @@ object Usage {
     private const val KEY_LAST = "usage.last."
     private const val KEY_COUNT = "usage.count."
     private const val KEY_PENDING_ID = "usage.pending.id"
+    private const val KEY_PENDING_PKG = "usage.pending.pkg"
     private const val KEY_PENDING_AT = "usage.pending.at"
+    private const val KEY_METHOD = "usage.method"
+
+    /**
+     * 1 was the clock. 2 is the usage log. A phone carrying 1 is carrying hours it never spent, so
+     * 2 clears the time once rather than leaving the two kinds of number side by side.
+     */
+    private const val METHOD = 2
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(Apps.PREFS, Context.MODE_PRIVATE)
 
-    /** The hub is leaving for [entry]'s app now; remember the card and the moment. */
-    fun started(ctx: Context, entry: HubApp) {
+    /** Move this phone off the clock's totals, once. */
+    fun migrate(ctx: Context) {
+        val p = prefs(ctx)
+        if (p.getInt(KEY_METHOD, 0) >= METHOD) return
+        val edit = p.edit()
+        for (app in Apps.ALL) {
+            edit.remove(KEY_TOTAL + app.id).remove(KEY_COUNT + app.id)
+        }
+        edit.putInt(KEY_METHOD, METHOD).apply()
+    }
+
+    /** Whether this phone will tell the hub how long another app was in front. */
+    fun granted(ctx: Context): Boolean {
+        val ops = ctx.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager ?: return false
+        return try {
+            val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ops.unsafeCheckOpNoThrow(
+                    AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), ctx.packageName
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                ops.checkOpNoThrow(
+                    AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), ctx.packageName
+                )
+            }
+            mode == AppOpsManager.MODE_ALLOWED
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /** The hub is leaving for [entry]'s app now; remember the card, the package and the moment. */
+    fun started(ctx: Context, entry: HubApp, pkg: String) {
         prefs(ctx).edit()
             .putString(KEY_PENDING_ID, entry.id)
+            .putString(KEY_PENDING_PKG, pkg)
             .putLong(KEY_PENDING_AT, System.currentTimeMillis())
             .apply()
     }
 
     /**
-     * The hub came back. If a session is open, bank it: the visit was from the moment the card
-     * was tapped to now, and that now is also the card's "last opened". A clock that went
-     * backwards (or a session that never recorded a start) banks nothing rather than a negative.
+     * The hub came back, so the visit that just ended can be priced. Only the time the app was in
+     * front is banked, and that now is the card's "last opened". A session with no start, a clock
+     * that went backwards, or a phone that will not share its usage log banks nothing rather than
+     * a number nobody can stand behind.
      */
     fun returned(ctx: Context) {
         val p = prefs(ctx)
         val id = p.getString(KEY_PENDING_ID, null) ?: return
+        val pkg = p.getString(KEY_PENDING_PKG, null)
         val at = p.getLong(KEY_PENDING_AT, 0L)
-        p.edit().remove(KEY_PENDING_ID).remove(KEY_PENDING_AT).apply()
+        p.edit().remove(KEY_PENDING_ID).remove(KEY_PENDING_PKG).remove(KEY_PENDING_AT).apply()
         val now = System.currentTimeMillis()
-        if (at <= 0L || now <= at) return
+        if (pkg == null || at <= 0L || now <= at) return
+        val spent = foreground(ctx, pkg, at, now)
+        if (spent <= 0L) return
         p.edit()
-            .putLong(KEY_TOTAL + id, total(ctx, id) + (now - at))
+            .putLong(KEY_TOTAL + id, total(ctx, id) + spent)
             .putLong(KEY_LAST + id, now)
             .putInt(KEY_COUNT + id, count(ctx, id) + 1)
             .apply()
+    }
+
+    /**
+     * Foreground time for [pkg] between two moments, from the phone's usage log.
+     *
+     * The log's own totals are not used. They are kept in buckets - an hour or a day at a time -
+     * and a query that lands inside one is answered with the whole bucket, which is the same kind
+     * of over-count this version exists to remove. The events are exact: one line when an app came
+     * to the front and one when it went away, so the stretches are summed by [UsageSum].
+     *
+     * The read starts [UsageSum.PADDING] before the visit because the launch line is written
+     * before the hub manages to record the tap.
+     */
+    private fun foreground(ctx: Context, pkg: String, from: Long, to: Long): Long {
+        val usm = ctx.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+            ?: return 0L
+        return try {
+            val stream = usm.queryEvents(from - UsageSum.PADDING, to) ?: return 0L
+            val event = UsageEvents.Event()
+            val events = ArrayList<UsageEvent>()
+            while (stream.hasNextEvent()) {
+                stream.getNextEvent(event)
+                if (event.packageName == pkg) {
+                    events += UsageEvent(pkg, event.eventType, event.timeStamp)
+                }
+            }
+            UsageSum.foreground(pkg, from, to, events)
+        } catch (e: Exception) {
+            0L
+        }
     }
 
     fun total(ctx: Context, id: String): Long = prefs(ctx).getLong(KEY_TOTAL + id, 0L)

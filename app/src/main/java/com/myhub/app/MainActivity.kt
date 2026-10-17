@@ -36,6 +36,9 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // A phone upgrading from the clock-based totals clears them once here, before a card is
+        // drawn, so no card is ever shown a number this version did not earn.
+        Usage.migrate(this)
         setContentView(build())
     }
 
@@ -116,10 +119,12 @@ class MainActivity : Activity() {
             list.addView(card(entry, pkg))
         }
         val tracked = Usage.totalAll(this)
-        summary.text = if (tracked > 0L) {
-            "${Apps.ALL.size} apps · $found installed · ${Usage.human(tracked)} in them"
-        } else {
-            "${Apps.ALL.size} apps · $found installed"
+        val timed = Usage.granted(this)
+        summary.text = when {
+            tracked > 0L ->
+                "${Apps.ALL.size} apps · $found installed · ${Usage.human(tracked)} in them"
+            !timed -> "${Apps.ALL.size} apps · $found installed · time needs Usage access"
+            else -> "${Apps.ALL.size} apps · $found installed"
         }
         if (found == 0) list.addView(note())
     }
@@ -164,14 +169,20 @@ class MainActivity : Activity() {
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
                 setPadding(0, dp(4), 0, 0)
             })
-            // The time card: how long this app has been on screen across the visits made from
-            // here. A card that has never been opened from the hub says so instead of showing 0m.
+            // The time card: how long this app was in front across the visits made from here.
+            // A card that has never been opened from the hub says so instead of showing 0m, and
+            // with Usage access off the line offers the switch rather than a guess.
             val tracked = Usage.total(this@MainActivity, entry.id)
+            val timed = Usage.granted(this)
             details.addView(TextView(this).apply {
                 text = usageLine(entry)
                 setTextColor(Color.parseColor(if (tracked > 0L) "#63C6A6" else "#4E6B84"))
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
                 setPadding(0, dp(5), 0, 0)
+                if (!timed) {
+                    isClickable = true
+                    setOnClickListener { usageAccess() }
+                }
             })
         }
         row.addView(details, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -246,9 +257,10 @@ class MainActivity : Activity() {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
             startActivity(intent)
-            // The hub is on its way out; this is the moment the visit's clock starts. It is only
-            // written after the app actually started, so a launch that failed is never timed.
-            Usage.started(this, entry)
+            // The hub is on its way out; this is the moment the visit starts, and the package is
+            // written with it so the usage log can be asked about that app and not another. It is
+            // only written after the app actually started, so a launch that failed is never timed.
+            Usage.started(this, entry, pkg)
         } catch (e: Exception) {
             toast("Could not start ${Apps.appName(packageManager, pkg)}")
         }
@@ -257,7 +269,10 @@ class MainActivity : Activity() {
     /** "2h 14m over 3 visits · last opened 4h ago", or an invitation when a card is a stranger. */
     private fun usageLine(entry: HubApp): String {
         val total = Usage.total(this, entry.id)
-        if (total <= 0L) return "Not opened from the hub yet"
+        if (total <= 0L) {
+            return if (Usage.granted(this)) "Not opened from the hub yet"
+            else "Not timed yet · tap to turn on Usage access"
+        }
         val visits = Usage.count(this, entry.id)
         val visitWord = if (visits == 1) "visit" else "visits"
         val since = Usage.ago(this, entry.id)?.let { " · last opened $it" } ?: ""
@@ -328,22 +343,34 @@ class MainActivity : Activity() {
     }
 
     private fun settings() {
+        val items = mutableListOf("Refresh", "How the hub finds your apps")
+        if (!Usage.granted(this)) items += "Turn on Usage access, to time each app"
+        items += "Reset all tracked time"
         AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
             .setTitle("My Hub")
-            .setItems(
-                arrayOf("Refresh", "How the hub finds your apps", "Reset all tracked time")
-            ) { _, which ->
-                when (which) {
-                    0 -> {
+            .setItems(items.toTypedArray()) { _, which ->
+                when (items[which]) {
+                    "Refresh" -> {
                         fill()
                         toast("Checked again")
                     }
-                    1 -> about()
-                    else -> confirmReset()
+                    "How the hub finds your apps" -> about()
+                    "Reset all tracked time" -> confirmReset()
+                    else -> usageAccess()
                 }
             }
             .setNegativeButton("Close", null)
             .show()
+    }
+
+    /** The one-off switch that lets the hub read how long another app was in front. */
+    private fun usageAccess() {
+        try {
+            startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+            toast("Turn My Hub on in Usage access, then come back")
+        } catch (e: Exception) {
+            toast("Usage access lives in Settings \u2192 Apps \u2192 Special access on this phone")
+        }
     }
 
     private fun confirmReset() {
@@ -381,9 +408,12 @@ class MainActivity : Activity() {
                     "any app: press and hold it and choose the one you want. The choice is " +
                     "remembered, and 'Use the default' on that screen puts it back to searching.\n\n" +
                     "Nothing is sent anywhere: the hub only ever asks this phone what is installed.\n\n" +
-                    "Each card also carries how long that app has been open. The clock runs from the " +
-                    "moment you leave the hub for an app to the moment you come back, which is time " +
-                    "you actually spent there, and nothing runs while the hub is closed. Press and " +
+                    "Each card also carries how long that app was actually in front. That number " +
+                    "comes from the phone's own usage log, which knows when an app is on screen and " +
+                    "stops counting when the screen goes off or you move to something else - so a " +
+                    "night's sleep, or a detour through another app, is not charged to the card.\n\n" +
+                    "Reading that log needs Usage access: a one-off switch, not a permission prompt. " +
+                    "Until it is on, no time is recorded and each card offers the switch. Press and " +
                     "hold a card to clear one card's time, or use Reset all tracked time here."
             )
             .setPositiveButton("Got it", null)
