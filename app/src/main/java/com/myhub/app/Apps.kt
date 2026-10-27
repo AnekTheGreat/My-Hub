@@ -27,9 +27,10 @@ import java.util.Locale
 data class HubApp(
     val id: String,
     val title: String,
-    val tagline: String,
     val packages: List<String>,
-    val aliases: List<String>
+    val aliases: List<String>,
+    /** A slot is a card with no app of its own: it is empty until one is chosen by hand. */
+    val slot: Boolean = false
 )
 
 object Apps {
@@ -39,14 +40,12 @@ object Apps {
         HubApp(
             id = "famTM",
             title = "FamTM",
-            tagline = "The family tree",
             packages = listOf("com.familytree.app"),
             aliases = listOf("FamTM", "Family Tree")
         ),
         HubApp(
             id = "sidecut",
             title = "SideCut",
-            tagline = "Your music player, from the Play Store",
             // The Play build. Its applicationId is com.SideCut.myapp, and on the phone it lists
             // itself as "SideCut Play". Looking for the name "SideCut" alone could never match
             // that label, which is how this card ended up saying "Not installed" on a phone that
@@ -57,7 +56,6 @@ object Apps {
         HubApp(
             id = "sidecutfull",
             title = "SideCut Full",
-            tagline = "Your music player, the sideloaded build",
             // SideCut is published twice from one pipeline: the Play build above, and this one — the
             // complete build, sideloaded only. It is given its own applicationId and its own name
             // exactly so the two can be installed side by side, so each gets a card of its own here:
@@ -69,7 +67,6 @@ object Apps {
         HubApp(
             id = "measuret",
             title = "MeasureT",
-            tagline = "Measure anything",
             // MeasureT is built out of the Compass-EDC repository, and the applicationId that
             // repository's Capacitor config hands the APK is com.CompassEDC.myapp -- the one
             // package name that really exists on a phone. It is looked for FIRST, because the
@@ -86,17 +83,46 @@ object Apps {
             // card opens it rather than claiming there is nothing to open. It sits last, so a
             // build that has moved to the new name always wins.
             aliases = listOf("MeasureT", "Measure T", "Measure", "Compass EDC", "CompassEDC")
+        ),
+        // The two slots. A slot is not built for anything: it carries no package names and no
+        // aliases, so it resolves to nothing until an app is chosen by hand - which is what an
+        // empty slot should do - and from then on it opens whatever that app is. Nothing about a
+        // slot is baked in, so nothing about it goes stale: the choice lives in the same
+        // remembered binding every other card already has, and Clear puts it back to empty.
+        HubApp(
+            id = "slot1",
+            title = "Slot 1",
+            packages = emptyList(),
+            aliases = emptyList(),
+            slot = true
+        ),
+        HubApp(
+            id = "slot2",
+            title = "Slot 2",
+            packages = emptyList(),
+            aliases = emptyList(),
+            slot = true
         )
     )
 
     const val PREFS = "myhub"
     fun bindKey(e: HubApp) = "bind.${e.id}"
 
+    /** The app this card was pointed at by hand, or null when nothing was chosen for it. */
+    fun chosen(ctx: Context, e: HubApp): String? =
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(bindKey(e), null)
+
+    /** Point a card at [pkg] and remember it; pass null to give the card back to its search. */
+    fun bind(ctx: Context, e: HubApp, pkg: String?) {
+        val edit = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+        if (pkg == null) edit.remove(bindKey(e)) else edit.putString(bindKey(e), pkg)
+        edit.apply()
+    }
+
     /** The package a tile should launch, or null when this phone has nothing that fits it. */
     fun resolve(ctx: Context, e: HubApp): String? {
         val pm = ctx.packageManager
-        val chosen = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getString(bindKey(e), null)
+        val chosen = chosen(ctx, e)
         if (chosen != null && launchable(ctx, chosen)) return chosen
         e.packages.firstOrNull { launchable(ctx, it) }?.let { return it }
 

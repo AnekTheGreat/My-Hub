@@ -21,13 +21,17 @@ import android.widget.TextView
 import android.widget.Toast
 import java.util.Locale
 
-// The palette: the navy of OnePlus Game Space with OnePlus red for the launch action.
+// The palette: the navy of OnePlus Game Space, and nothing else. The screen carries no red any
+// more - a card is a name, an icon and, when there is something to say, one quiet line.
 private val BG = Color.parseColor("#0C1A2B")
 private val CARD = Color.parseColor("#16283F")
-private val CARD_MISSING = Color.parseColor("#111E2E")
+private val CARD_DOWN = Color.parseColor("#1C314C")
+private val LINE = Color.parseColor("#22344C")
+private val LINE_DOWN = Color.parseColor("#2C4260")
 private val INK = Color.parseColor("#F2F6FB")
 private val MUTE = Color.parseColor("#8FA3B8")
-private val ACCENT = Color.parseColor("#EB1B2E")
+private val CHEVRON = Color.parseColor("#47617A")
+private val TIMED = Color.parseColor("#63C6A6")
 
 class MainActivity : Activity() {
 
@@ -63,15 +67,16 @@ class MainActivity : Activity() {
         window.statusBarColor = BG
         window.navigationBarColor = BG
 
+        // The header is the app's name and one control. Nothing counts itself up here.
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(20), dp(22), dp(12), 0)
+            setPadding(dp(22), dp(24), dp(10), 0)
         }
         bar.addView(TextView(this).apply {
             text = "My Hub"
             setTextColor(INK)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         bar.addView(ImageView(this).apply {
@@ -81,19 +86,21 @@ class MainActivity : Activity() {
             contentDescription = "Settings"
             isClickable = true
             setOnClickListener { settings() }
-        }, LinearLayout.LayoutParams(dp(44), dp(44)))
+        }, LinearLayout.LayoutParams(dp(42), dp(42)))
         root.addView(bar)
 
+        // Only ever says something worth reading: a card that has no app, or the time you have
+        // spent. When there is neither, it is not there at all.
         summary = TextView(this).apply {
             setTextColor(MUTE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            setPadding(dp(20), dp(2), dp(20), dp(14))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+            setPadding(dp(22), dp(3), dp(22), dp(6))
         }
         root.addView(summary)
 
         list = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(2), dp(14), dp(24))
+            setPadding(dp(16), dp(10), dp(16), dp(8))
         }
         root.addView(ScrollView(this).apply {
             isFillViewport = true
@@ -101,99 +108,102 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
         root.addView(TextView(this).apply {
-            text = "Tap a card to open its app · press and hold to change what it opens"
-            setTextColor(MUTE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            text = "Hold a card to change its app"
+            setTextColor(CHEVRON)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             gravity = Gravity.CENTER
-            setPadding(dp(20), dp(12), dp(20), dp(18))
+            setPadding(dp(16), dp(6), dp(16), dp(16))
         })
         return root
     }
 
     private fun fill() {
         list.removeAllViews()
-        var found = 0
+        var missing = 0
         for (entry in Apps.ALL) {
             val pkg = Apps.resolve(this, entry)
-            if (pkg != null) found++
+            // An empty slot is not a problem to report: it is empty because nobody filled it yet.
+            if (pkg == null && !entry.slot) missing++
             list.addView(card(entry, pkg))
         }
+        val presets = Apps.ALL.count { !it.slot }
         val tracked = Usage.totalAll(this)
-        val timed = Usage.granted(this)
         summary.text = when {
-            tracked > 0L ->
-                "${Apps.ALL.size} apps · $found installed · ${Usage.human(tracked)} in them"
-            !timed -> "${Apps.ALL.size} apps · $found installed · time needs Usage access"
-            else -> "${Apps.ALL.size} apps · $found installed"
+            missing > 0 -> "$missing of $presets cards still need an app"
+            tracked > 0L -> "${Usage.human(tracked)} across your apps"
+            else -> ""
         }
-        if (found == 0) list.addView(note())
+        summary.visibility = if (summary.text.isEmpty()) View.GONE else View.VISIBLE
     }
 
+    /**
+     * One card: the app's icon, its name, and at most one line under it. The package name and the
+     * red launch button that used to sit on every row are gone - the whole card is the button, and
+     * the chevron says so.
+     */
     private fun card(entry: HubApp, pkg: String?): View {
         val here = pkg != null
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), dp(16), dp(12), dp(16))
-            background = rounded(if (here) CARD else CARD_MISSING, 20f)
+            setPadding(dp(14), dp(13), dp(14), dp(13))
+            background = rowBackground(here)
             isClickable = true
+            isFocusable = true
             setOnClickListener { if (here) open(entry, pkg!!) else pick(entry) }
             setOnLongClickListener { menu(entry, pkg); true }
         }
         row.layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { bottomMargin = dp(12) }
+        ).apply { bottomMargin = dp(10) }
 
-        row.addView(icon(pkg, entry.title))
+        row.addView(icon(entry, pkg))
 
         val details = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), 0, dp(8), 0)
+            setPadding(dp(14), 0, dp(6), 0)
         }
         details.addView(TextView(this).apply {
-            text = entry.title
+            text = title(entry, pkg)
             setTextColor(if (here) INK else MUTE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         })
-        details.addView(TextView(this).apply {
-            text = if (here) entry.tagline else "Not installed · tap to point this card at an app"
-            setTextColor(MUTE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
-            setPadding(0, dp(3), 0, 0)
-        })
-        if (here) {
+        val sub = subtitle(entry, pkg)
+        if (sub != null) {
+            val timed = here && Usage.total(this, entry.id) > 0L
             details.addView(TextView(this).apply {
-                text = pkg
-                setTextColor(Color.parseColor("#5E7A93"))
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-                setPadding(0, dp(4), 0, 0)
-            })
-            // The time card: how long this app was in front across the visits made from here.
-            // A card that has never been opened from the hub says so instead of showing 0m, and
-            // with Usage access off the line offers the switch rather than a guess.
-            val tracked = Usage.total(this@MainActivity, entry.id)
-            val timed = Usage.granted(this)
-            details.addView(TextView(this).apply {
-                text = usageLine(entry)
-                setTextColor(Color.parseColor(if (tracked > 0L) "#63C6A6" else "#4E6B84"))
+                text = sub
+                setTextColor(if (timed) TIMED else MUTE)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
-                setPadding(0, dp(5), 0, 0)
-                if (!timed) {
-                    isClickable = true
-                    setOnClickListener { usageAccess() }
-                }
+                setPadding(0, dp(3), 0, 0)
             })
         }
         row.addView(details, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
 
-        row.addView(action(entry, pkg))
+        row.addView(TextView(this).apply {
+            text = "\u203A"
+            setTextColor(CHEVRON)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+        })
         return row
     }
 
-    /** The app's own icon, or a lettered badge when the card has nothing to point at yet. */
-    private fun icon(pkg: String?, title: String): View {
-        val size = dp(52)
+    /** A card's name: its own, or the app it was pointed at when it is a slot. */
+    private fun title(entry: HubApp, pkg: String?): String =
+        if (entry.slot && pkg != null) Apps.appName(packageManager, pkg) else entry.title
+
+    /** The one line under a name, or null when there is nothing worth saying. */
+    private fun subtitle(entry: HubApp, pkg: String?): String? = when {
+        pkg == null && entry.slot -> "Empty \u00B7 tap to choose an app"
+        pkg == null -> "Not installed \u00B7 tap to choose an app"
+        Usage.total(this, entry.id) > 0L -> usageLine(entry)
+        else -> null
+    }
+
+    /** The app's own icon, a lettered badge for a card whose app is not here, + for an empty slot. */
+    private fun icon(entry: HubApp, pkg: String?): View {
+        val size = dp(44)
         val view: View = if (pkg != null) {
             ImageView(this).apply {
                 try {
@@ -204,46 +214,29 @@ class MainActivity : Activity() {
             }
         } else {
             TextView(this).apply {
-                text = title.trim().take(1).uppercase(Locale.ROOT)
+                text = if (entry.slot) "+" else entry.title.trim().take(1).uppercase(Locale.ROOT)
                 setTextColor(MUTE)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, if (entry.slot) 22f else 18f)
                 gravity = Gravity.CENTER
                 typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-                background = rounded(Color.parseColor("#1D3459"), 14f)
+                background = if (entry.slot) rounded(Color.TRANSPARENT, 12f, LINE)
+                else rounded(Color.parseColor("#1D3459"), 12f)
             }
         }
         view.layoutParams = LinearLayout.LayoutParams(size, size)
         return view
     }
 
-    private fun action(entry: HubApp, pkg: String?): View {
-        val button = TextView(this).apply {
-            text = if (pkg != null) "\u25B6" else "+"
-            gravity = Gravity.CENTER
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, if (pkg != null) 15f else 20f)
-            setTextColor(if (pkg != null) Color.WHITE else MUTE)
-            background = StateListDrawable().apply {
-                addState(
-                    intArrayOf(android.R.attr.state_pressed),
-                    rounded(if (pkg != null) Color.parseColor("#B51424") else Color.parseColor("#22344C"), 24f)
-                )
-                addState(
-                    intArrayOf(),
-                    rounded(if (pkg != null) ACCENT else Color.parseColor("#1B2A3F"), 24f)
-                )
-            }
-            isClickable = true
-            setOnClickListener { if (pkg != null) open(entry, pkg) else pick(entry) }
-        }
-        button.layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
-        return button
-    }
-
-    private fun note() = TextView(this).apply {
-        text = "Nothing on this phone matches these apps yet. Press and hold a card, or tap the + on one, to point it at an app that is installed."
-        setTextColor(MUTE)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-        setPadding(dp(6), dp(4), dp(6), dp(8))
+    /** A filled card for an app that is here, an outlined one for a card that is not. */
+    private fun rowBackground(hasApp: Boolean): StateListDrawable = StateListDrawable().apply {
+        addState(
+            intArrayOf(android.R.attr.state_pressed),
+            if (hasApp) rounded(CARD_DOWN, 18f) else rounded(Color.TRANSPARENT, 18f, LINE_DOWN)
+        )
+        addState(
+            intArrayOf(),
+            if (hasApp) rounded(CARD, 18f) else rounded(Color.TRANSPARENT, 18f, LINE)
+        )
     }
 
     // ---- what a card does ----
@@ -266,33 +259,37 @@ class MainActivity : Activity() {
         }
     }
 
-    /** "2h 14m over 3 visits · last opened 4h ago", or an invitation when a card is a stranger. */
+    /** "2h 14m over 3 visits \u00B7 last opened 4h ago" - only ever drawn once there is time. */
     private fun usageLine(entry: HubApp): String {
         val total = Usage.total(this, entry.id)
-        if (total <= 0L) {
-            return if (Usage.granted(this)) "Not opened from the hub yet"
-            else "Not timed yet · tap to turn on Usage access"
-        }
         val visits = Usage.count(this, entry.id)
         val visitWord = if (visits == 1) "visit" else "visits"
-        val since = Usage.ago(this, entry.id)?.let { " · last opened $it" } ?: ""
+        val since = Usage.ago(this, entry.id)?.let { " \u00B7 $it" } ?: ""
         return "${Usage.human(total)} over $visits $visitWord$since"
     }
 
     private fun menu(entry: HubApp, pkg: String?) {
         val items = mutableListOf<String>()
         if (pkg != null) items += "Open"
-        items += "Choose the app\u2026"
+        items += if (pkg != null) "Change the app\u2026" else "Choose an app\u2026"
+        if (pkg != null && entry.slot) items += "Empty this slot"
         if (pkg != null) items += "App info"
-        if (pkg != null && Usage.total(this, entry.id) > 0L) items += "Reset this app's time"
+        if (pkg != null && Usage.total(this, entry.id) > 0L) items += "Reset this card's time"
         AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
-            .setTitle(entry.title)
+            .setTitle(title(entry, pkg))
             .setItems(items.toTypedArray()) { _, which ->
                 when (items[which]) {
                     "Open" -> open(entry, pkg!!)
-                    "Choose the app\u2026" -> pick(entry)
+                    "Change the app\u2026", "Choose an app\u2026" -> pick(entry)
+                    "Empty this slot" -> {
+                        // The one thing a slot owns is a binding, so emptying it is just that
+                        // binding going away - the time it earned stays where it is.
+                        Apps.bind(this, entry, null)
+                        fill()
+                        toast("${entry.title} is empty again")
+                    }
                     "App info" -> appInfo(pkg!!)
-                    "Reset this app's time" -> {
+                    "Reset this card's time" -> {
                         Usage.forget(this, entry.id)
                         fill()
                         toast("Cleared ${entry.title}'s time")
@@ -316,16 +313,17 @@ class MainActivity : Activity() {
         }
         val shown = apps.map { "${it.second}\n${it.first}" }.toTypedArray()
         AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
-            .setTitle("Open ${entry.title} with\u2026")
+            .setTitle(
+                if (entry.slot) "Put an app in ${entry.title}"
+                else "Open ${entry.title} with\u2026"
+            )
             .setItems(shown) { _, which ->
-                getSharedPreferences(Apps.PREFS, MODE_PRIVATE).edit()
-                    .putString(Apps.bindKey(entry), apps[which].first).apply()
+                Apps.bind(this, entry, apps[which].first)
                 fill()
                 toast("${entry.title} \u2192 ${apps[which].second}")
             }
-            .setNeutralButton("Use the default") { _, _ ->
-                getSharedPreferences(Apps.PREFS, MODE_PRIVATE).edit()
-                    .remove(Apps.bindKey(entry)).apply()
+            .setNeutralButton(if (entry.slot) "Empty the slot" else "Use the default") { _, _ ->
+                Apps.bind(this, entry, null)
                 fill()
             }
             .setNegativeButton("Cancel", null)
@@ -377,9 +375,9 @@ class MainActivity : Activity() {
         AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
             .setTitle("Reset all tracked time")
             .setMessage(
-                "Every card's total goes back to zero and each one reads \"Not opened from the hub " +
-                    "yet\" again. Nothing else changes: the apps themselves, and which app each card " +
-                    "opens, are untouched."
+                "Every card's total goes back to zero and its second line disappears again. " +
+                    "Nothing else changes: the apps themselves, and which app each card opens, " +
+                    "are untouched."
             )
             .setPositiveButton("Reset") { _, _ ->
                 Usage.forgetAll(this)
@@ -395,26 +393,23 @@ class MainActivity : Activity() {
             .setTitle("How the hub finds your apps")
             .setMessage(
                 "A card opens the app it found on this phone.\n\n" +
-                    "It looks for the apps it was built for by package name \u2014 FamTM is com.familytree.app, " +
-                    "SideCut is com.SideCut.myapp, and the sideloaded SideCut Full is " +
-                    "com.SideCut.myapp.full \u2014 and if that finds nothing it looks for an app whose own " +
-                    "name matches the card.\n\n" +
-                    "SideCut is published twice, so it has two cards: the Play build and the sideloaded " +
-                    "full build are separate apps on this phone and each card opens its own.\n\n" +
-                    "MeasureT is built from the Compass-EDC repository and installs as " +
-                    "com.CompassEDC.myapp, so that is the package its card looks for first \u2014 and " +
-                    "if this phone carries it under the name it shipped with before, Compass EDC, " +
-                    "the card opens it just the same. A card that finds nothing can be pointed at " +
-                    "any app: press and hold it and choose the one you want. The choice is " +
-                    "remembered, and 'Use the default' on that screen puts it back to searching.\n\n" +
-                    "Nothing is sent anywhere: the hub only ever asks this phone what is installed.\n\n" +
-                    "Each card also carries how long that app was actually in front. That number " +
-                    "comes from the phone's own usage log, which knows when an app is on screen and " +
-                    "stops counting when the screen goes off or you move to something else - so a " +
-                    "night's sleep, or a detour through another app, is not charged to the card.\n\n" +
-                    "Reading that log needs Usage access: a one-off switch, not a permission prompt. " +
-                    "Until it is on, no time is recorded and each card offers the switch. Press and " +
-                    "hold a card to clear one card's time, or use Reset all tracked time here."
+                    "The four cards the hub was built with look for their apps by package name, " +
+                    "and if that finds nothing they look for an app whose own name matches. " +
+                    "MeasureT, for instance, installs from the Compass-EDC repository as " +
+                    "com.CompassEDC.myapp, so that is what its card looks for first.\n\n" +
+                    "Slot 1 and Slot 2 are yours: they hold nothing until you choose an app for " +
+                    "them, and then they take that app's icon and name. Tap an empty slot to " +
+                    "choose, or hold one that is filled to change it or empty it again.\n\n" +
+                    "Any card can be pointed at any app: press and hold it and choose the one you " +
+                    "want. The choice is remembered, and 'Use the default' puts a built-in card " +
+                    "back to searching.\n\n" +
+                    "Nothing is sent anywhere: the hub only ever asks this phone what is " +
+                    "installed.\n\n" +
+                    "When a card has been opened from here, it also says how long that app was " +
+                    "actually in front, taken from the phone's own usage log - which stops " +
+                    "counting when the screen does or you move to something else, so a night's " +
+                    "sleep is not charged to a card. Reading that log needs Usage access: a " +
+                    "one-off switch, not a permission prompt, found in the menu behind the gear."
             )
             .setPositiveButton("Got it", null)
             .show()
@@ -429,8 +424,9 @@ class MainActivity : Activity() {
         TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics
     ).toInt()
 
-    private fun rounded(color: Int, radiusDp: Float) = GradientDrawable().apply {
+    private fun rounded(color: Int, radiusDp: Float, stroke: Int? = null) = GradientDrawable().apply {
         setColor(color)
         cornerRadius = dp(radiusDp.toInt()).toFloat()
+        if (stroke != null) setStroke(dp(1), stroke)
     }
 }
