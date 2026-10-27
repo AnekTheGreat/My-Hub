@@ -17,7 +17,15 @@ findjar() {
 }
 
 COMPILER=$(findjar kotlin-compiler-embeddable)
+# The stdlib has to be the compiler's OWN version: the Gradle cache can hold several (a Kotlin 2.x
+# stdlib sitting beside this 1.9 one is unreadable to a 1.9 compiler, and "newest" then picks it).
+KOTLIN=${COMPILER##*/kotlin-compiler-embeddable-}
+KOTLIN=${KOTLIN%.jar}
 STDLIB=$(findjar kotlin-stdlib)
+if [ -n "$KOTLIN" ]; then
+    STDLIB=$(find "$CACHE/org.jetbrains.kotlin/kotlin-stdlib/$KOTLIN" -name "kotlin-stdlib-$KOTLIN.jar" 2>/dev/null \
+        | sort | tail -1)
+fi
 # The embeddable compiler keeps its collections in trove; without it the compiler itself dies.
 TROVE=$(find "$CACHE/org.jetbrains.intellij.deps/trove4j" -name 'trove4j-*.jar' 2>/dev/null | sort | tail -1)
 ANNOT=$(find "$CACHE/org.jetbrains/annotations" -name 'annotations-*.jar' 2>/dev/null | sort | tail -1)

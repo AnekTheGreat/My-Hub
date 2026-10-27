@@ -1,8 +1,8 @@
 # My Hub
 
 One dark screen that launches your apps from one place, modelled on the **OnePlus Game Space /
-Game Hub**: the same navy field, the same list of big rounded cards, an icon and a name on the left
-and a red launch button on the right. Only yours are your apps instead of games.
+Game Hub**: the same navy field, the same list of rounded cards, an icon and a name on the left. Only
+yours are your apps instead of games — and the last two cards are slots you fill yourself.
 
 | Card | What it opens |
 | --- | --- |
@@ -10,9 +10,18 @@ and a red launch button on the right. Only yours are your apps instead of games.
 | **SideCut** | the SideCut APK, the Play build |
 | **SideCut Full** | the SideCut APK, the sideloaded full build |
 | **MeasureT** | the MeasureT APK |
+| **Slot 1**, **Slot 2** | whatever app you put in them |
 
 Tapping a card opens that app. Coming back to the hub puts you back at the top of the list, ready
 to open the next one.
+
+## The two slots
+
+The last two cards are empty on purpose. A slot is not built for anything: tap it, pick any app on
+the phone, and from then on it wears that app's icon and name and opens it like any other card.
+Hold a filled slot for **Change the app…** or **Empty this slot**, which puts it back to empty
+without touching the time it earned. Nothing about a slot is baked into the APK, so nothing about it
+can go stale.
 
 ## Install
 
@@ -41,7 +50,7 @@ SideCut is published twice from one pipeline, and the two builds are made to be 
 side: the Play build is `com.SideCut.myapp` and named *SideCut*, and the sideloaded full build is
 `com.SideCut.myapp.full` and named *SideCut Full*. Because they are two separate apps on the phone,
 they get a card each — one card could only ever open one of them. If you have one of the two, the
-other card says so and offers the `+` to point it somewhere else.
+other card says so, and tapping it points the card somewhere else.
 
 MeasureT is built out of the Compass-EDC repository, and the applicationId that repository's
 Capacitor config gives the APK is `com.CompassEDC.myapp` — so that is the package its card looks
@@ -53,12 +62,12 @@ If a card still finds nothing at all, **press and hold it** and choose the app f
 everything installed on the phone. The hub remembers the choice, and *Use the default* on that same
 screen puts the card back to searching by itself.
 
-The card also tells you where it stands: its app icon and package name when it found something,
-and *"Not installed · tap to point this card at an app"* with a `+` button when it did not. The
-line under the title counts how many of the cards found their app.
+The card also tells you where it stands: the app's own icon and name when it found something, and a
+quiet *"Not installed · tap to choose an app"* when it did not.
 
-Press and hold any card for **Open**, **Choose the app…** and **App info**, and use the gear in the
-top right for **Refresh** and a short explanation of the whole thing.
+Press and hold any card for **Open**, **Choose the app…** and **App info** — a slot adds **Empty this
+slot** — and use the gear in the top right for **Refresh** and a short explanation of the whole
+thing.
 
 ## What it does not do
 
@@ -93,10 +102,9 @@ counting when the screen does or when you move to something else, so a night's s
 through another app, is not charged to the card. A card also says *over how many visits* the time
 was earned, and when it was last opened from the hub.
 
-That read needs **Usage access**, which is one switch, not a permission dialog: the line on any card
-that has no time yet, or the gear, opens Settings → Usage access, where **My Hub** is turned on.
-Until it is on, nothing is recorded and the card offers the switch — the hub never fills the gap
-with a guess.
+That read needs **Usage access**, which is one switch, not a permission dialog: the gear offers it
+until it is on, and it opens Settings → Usage access, where **My Hub** is turned on. Until it is on,
+nothing is recorded and nothing fills the gap with a guess.
 
 Why it is built this way: the first version measured the same visit with a clock, from the tap to
 the moment the hub came back. That clock kept running while the phone slept and while you used
@@ -104,9 +112,10 @@ something else, and a card that was tapped once and returned to the next morning
 version that added the usage log clears those old totals once, on first run, because they cannot be
 separated from time that was never spent.
 
-The header counts it all up: *“4 apps · 4 installed · 2h 14m in them”*. Press and hold a card for
-**Reset this app's time**, or use the gear for **Reset all tracked time**. A card that has never been
-opened from the hub says *Not opened from the hub yet* rather than showing a zero.
+A card only grows that second line once it has time to show, so a fresh hub is just icons and
+names; the header does the same, and appears only when a card is still empty or there is time to
+report. Press and hold a card for **Reset this card's time**, or use the gear for **Reset all
+tracked time**.
 
 ## Building
 
@@ -146,4 +155,4 @@ app/src/main/res/    colours, theme, settings gear, launcher icon
 
 ## Version
 
-`1.2.0` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 34 (Android 14).
+`1.3.0` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 34 (Android 14).
