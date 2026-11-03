@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK + AAB
 
 on:
   push:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   apk:
-    name: Build the hub APKs
+    name: Build the hub APKs and AABs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,34 +45,50 @@ jobs:
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/myhub.p12"
           echo "SIGNING_STORE_FILE=$RUNNER_TEMP/myhub.p12" >> "$GITHUB_ENV"
 
-      - name: Build the APKs
+      # Both formats, both build types: the APK is what a phone installs by hand, the AAB is what
+      # Play Console takes. assemble* = APK, bundle* = AAB.
+      - name: Build the APKs and AABs
         env:
           SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           SIGNING_KEY_ALIAS: myhub
-        run: gradle assembleDebug assembleRelease --no-daemon --stacktrace
+        run: |
+          gradle assembleDebug assembleRelease bundleDebug bundleRelease \
+            --no-daemon --stacktrace
 
       # An unsigned release build is not a failed one - AGP writes app-release-unsigned.apk and
-      # carries on - so the output has to be named to be checked.
-      - name: Check the release APK is signed
+      # carries on - so the outputs have to be named to be checked. The AAB has the same trap:
+      # with no signing config it is still written, unsigned, and Play refuses it a day later.
+      - name: Check the release APK is signed and both AABs exist
         run: |
           APK=app/build/outputs/apk/release/app-release.apk
+          AAB=app/build/outputs/bundle/release/app-release.aab
+          DAAB=app/build/outputs/bundle/debug/app-debug.aab
           if [ ! -f "$APK" ]; then
             echo "::error::the release APK is unsigned - the signing secrets did not reach the build"
             ls -l app/build/outputs/apk/release/ || true
             exit 1
           fi
-          echo "signed and packaged: $APK ($(du -h "$APK" | cut -f1))"
+          for f in "$AAB" "$DAAB"; do
+            if [ ! -f "$f" ]; then
+              echo "::error::$f was not produced - bundleDebug/bundleRelease did not run"
+              ls -l app/build/outputs/bundle/ || true
+              exit 1
+            fi
+          done
+          echo "signed and packaged: $APK ($(du -h "$APK" | cut -f1)), $AAB ($(du -h "$AAB" | cut -f1))"
 
       # The card's time is arithmetic on the usage log; it has its own check and it runs here,
       # on the same Kotlin the APK was just built with.
       - name: Check the time arithmetic
         run: sh dev/check-usage-sum.sh
 
-      - name: Upload the APKs
+      - name: Upload the APKs and AABs
         uses: actions/upload-artifact@v4
         with:
-          name: MyHub-apk
+          name: MyHub-apk-aab
           path: |
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk
+            app/build/outputs/bundle/debug/*.aab
+            app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
