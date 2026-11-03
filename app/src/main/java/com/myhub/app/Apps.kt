@@ -44,6 +44,23 @@ object Apps {
             aliases = listOf("FamTM", "Family Tree")
         ),
         HubApp(
+            id = "sidecut",
+            title = "SideCut",
+            // SideCut comes out of one Capacitor build and is published twice. The Play build keeps
+            // the id its listing is bound to -- com.SideCut.myapp -- and calls itself "SideCut
+            // Play" on the phone. This card is THAT build: the one the workflow signs as
+            // SideCut-<version>-release.apk. It looks for the id first and then for the name the
+            // phone actually shows, because a card that looked for "SideCut" alone never matched
+            // "SideCut Play", and so claimed there was nothing to open on a phone that had it.
+            //
+            // The sideloaded full build (com.SideCut.myapp.full) deliberately has no card here. It
+            // is a different app on the phone, and one card opening whichever of the two happened
+            // to be installed would leave the other unreachable -- which is exactly what happened
+            // before the slots existed. Put it in a slot, or hold this card and choose it by hand.
+            packages = listOf("com.SideCut.myapp", "com.SideCut.play"),
+            aliases = listOf("SideCut Play", "SideCut")
+        ),
+        HubApp(
             id = "measuret",
             title = "MeasureT",
             // MeasureT is built out of the Compass-EDC repository, and the applicationId that
@@ -79,10 +96,9 @@ object Apps {
         // slot is baked in, so nothing about it goes stale: the choice lives in the same
         // remembered binding every other card already has, and Clear puts it back to empty.
         //
-        // These two cards used to be SideCut and SideCut Full. Two cards for one app only existed
-        // because shipping two builds forced it, and the pair could never open each other: a card
-        // that names an app is a card that goes stale. The slots replace them, so anything at all
-        // - either SideCut build included - can live here now.
+        // A slot is also how a second copy of the same app is reached: SideCut's full build is a
+        // different app on the phone from the release build above, and the only way to have both
+        // be one tap away is a second thing to tap.
         HubApp(
             id = "slot1",
             title = "Slot 1",

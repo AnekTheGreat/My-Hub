@@ -19,8 +19,8 @@ android {
         applicationId = "com.myhub.app"
         minSdk = 21
         targetSdk = 34
-        versionCode = 7
-        versionName = "1.5.0"
+        versionCode = 8
+        versionName = "1.6.0"
     }
 
     signingConfigs {
@@ -39,8 +39,8 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            // Null when no keystore was supplied, which leaves the release APK unsigned rather
-            // than failing a debug build on a machine that has no key.
+            // Null when no keystore was supplied, which leaves the release APK and AAB unsigned
+            // rather than failing a debug build on a machine that has no key.
             signingConfig = signingConfigs.findByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

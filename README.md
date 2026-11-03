@@ -7,9 +7,9 @@ yours are your apps instead of games — and the last two cards are slots you fi
 | Card | What it opens |
 | --- | --- |
 | **FamTM** | the FamTM APK |
-| **SideCut** | the SideCut APK, the Play build |
-| **SideCut Full** | the SideCut APK, the sideloaded full build |
+| **SideCut** | the SideCut **release** build — the Play build, `com.SideCut.myapp` |
 | **MeasureT** | the MeasureT APK |
+| **UJournal** | the UJournal APK |
 | **Slot 1**, **Slot 2** | whatever app you put in them |
 
 Tapping a card opens that app. Coming back to the hub puts you back at the top of the list, ready
@@ -23,17 +23,24 @@ Hold a filled slot for **Change the app…** or **Empty this slot**, which puts 
 without touching the time it earned. Nothing about a slot is baked into the APK, so nothing about it
 can go stale.
 
+A slot is also how you reach a *second copy* of an app. SideCut's sideloaded **full** build
+(`com.SideCut.myapp.full`) is a different app on the phone from the release build above, and one
+card cannot open both — put the full build in a slot, or hold the SideCut card and choose it by
+hand.
+
 ## Install
 
 There is no APK in this repository. GitHub builds one for you:
 
 1. Open the [**Releases**](../../releases) page and take the newest `MyHub-<version>.apk`. That is
 the signed build: [release.yml](../../actions/workflows/release.yml) makes it on every `v*` tag, or
-when it is dispatched by hand with a version.
+when it is dispatched by hand with a version. The same release carries `MyHub-<version>.aab` for
+Play Console.
 2. Prefer a build from a branch? Open the [**Actions**](../../actions/workflows/build.yml) tab, pick
-the newest **Build APK** run (every push to `main` starts one), and download the **MyHub-apk**
-artifact — it carries both `app-debug.apk` and the signed `app-release.apk`.
-3. Copy that file to your phone and tap it. Android will ask you to allow installing from this
+the newest **Build APK + AAB** run (every push to `main` starts one), and download the
+**MyHub-apk-aab** artifact — it carries `app-debug.apk`, the signed `app-release.apk`, and both
+bundles (`app-debug.aab`, `app-release.aab`).
+3. Copy the APK to your phone and tap it. Android will ask you to allow installing from this
    source the first time; that is normal for an app that did not come from the Play Store.
 
 Or build it yourself — see [Building](#building).
@@ -45,16 +52,15 @@ The hub ships knowing which app each card is meant to be, and asks your phone fo
 | Card | Package it looks for | If that is not installed |
 | --- | --- | --- |
 | FamTM | `com.familytree.app` | looks for an app named FamTM or Family Tree |
-| SideCut | `com.SideCut.myapp` | looks for an app named "SideCut Play" or "SideCut" |
-| SideCut Full | `com.SideCut.myapp.full` | looks for an app named "SideCut Full" |
+| SideCut | `com.SideCut.myapp` (the release build) | looks for an app named "SideCut Play" or "SideCut" |
 | MeasureT | `com.CompassEDC.myapp` | looks for an app named "MeasureT", "Measure T", "Measure", "Compass EDC" or "CompassEDC" |
-| UJournal | `app.ujournal` | looks for an app named "UJournal" or "Ultimate Journal" |
+| UJournal | `app.ujournal` | looks for an app named "UJournal" or "Journal" |
 
 SideCut is published twice from one pipeline, and the two builds are made to be installed side by
-side: the Play build is `com.SideCut.myapp` and named *SideCut*, and the sideloaded full build is
-`com.SideCut.myapp.full` and named *SideCut Full*. Because they are two separate apps on the phone,
-they get a card each — one card could only ever open one of them. If you have one of the two, the
-other card says so, and tapping it points the card somewhere else.
+side: the Play build is `com.SideCut.myapp` and named *SideCut Play*, and the sideloaded full build
+is `com.SideCut.myapp.full` and named *SideCut Full*. The SideCut card is the **release** build,
+the one the pipeline signs as `SideCut-<version>-release.apk`; the full build has no card of its own
+so that neither build can hide the other, and a slot takes it.
 
 MeasureT is built out of the Compass-EDC repository, and the applicationId that repository's
 Capacitor config gives the APK is `com.CompassEDC.myapp` — so that is the package its card looks
@@ -85,7 +91,7 @@ explanation of the whole thing.
   never opens a connection.
 - **No libraries.** No AndroidX, no Compose, no third-party code — the APK is a few hundred KB of
   framework calls, and the only things it keeps are the name of an app you picked by hand (if you
-ever picked one) and how long each card's app stayed open.
+  ever picked one) and how long each card's app stayed open.
 
 ## Seeing the apps at all (Android 11 and later)
 
@@ -139,10 +145,7 @@ happens.
 Needs JDK 17 and the Android SDK (platform 34, build-tools 34.0.0).
 
 ```bash
-gradle assembleDebug
-# APK: app/build/outputs/apk/debug/app-debug.apk
-```
-
+gradle assembleDebug     # app/build/outputs/apk/debug/app-debug.apk
 The build is pinned to Gradle 8.9 and Android Gradle Plugin 8.5.2. The repository carries no
 Gradle wrapper binary, so CI installs Gradle 8.9 itself — run `gradle wrapper` once if you would
 rather use `./gradlew` locally. Android Studio can also just open the folder.
@@ -158,10 +161,19 @@ gradle assembleRelease
 # APK: app/build/outputs/apk/release/app-release.apk
 ```
 
+`assemble*` makes an APK, `bundle*` makes an AAB — the bundle is what Play Console takes, the APK
+is what a phone installs by hand:
+
+```bash
+gradle assembleDebug assembleRelease bundleDebug bundleRelease
+# app/build/outputs/{apk,bundle}/{debug,release}/
+```
+
 CI does the same thing from two repository secrets — `KEYSTORE_BASE64` and `KEYSTORE_PASSWORD` — and
 writes the keystore to the runner's temp folder for the length of the job, so no key material is in
-this repository. Both workflows then **fail** if `app-release.apk` is missing: Android Gradle Plugin
-does not fail a release build without a key, it quietly writes `app-release-unsigned.apk` instead.
+this repository. Both workflows then **fail** if `app-release.apk` is missing (Android Gradle
+Plugin does not fail a release build without a key, it quietly writes `app-release-unsigned.apk`
+instead) and if `app-release.aab` or `app-debug.aab` is missing.
 
 The arithmetic that turns usage-log lines into a card's time lives in `UsageSum.kt` with no Android
 dependency, so it has its own check — the overnight, detour and launch-line cases included:
@@ -181,9 +193,9 @@ app/src/main/java/com/myhub/app/
     MainActivity.kt  the hub screen, its cards, the picker, and the clock
  dev/               the time arithmetic's own check
 app/src/main/res/    colours, theme, settings gear, launcher icon
-.github/workflows/   build.yml makes the APKs, release.yml signs one and publishes it
+.github/workflows/   build.yml makes the APKs and AABs, release.yml signs and publishes them
 ```
 
 ## Version
 
-`1.5.0` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 34 (Android 14).
+`1.6.0` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 34 (Android 14).
