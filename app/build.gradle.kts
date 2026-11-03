@@ -19,8 +19,15 @@ android {
         applicationId = "com.myhub.app"
         minSdk = 21
         targetSdk = 34
-        versionCode = 9
-        versionName = "1.7.0"
+        // One source of truth: the name is written once and the code is computed from it, so the
+        // APK on a phone, the APK CI builds and the release the updater reads can never disagree,
+        // and each release installs over the one before it - 1.8.0 -> 10800 over 1.7.0 -> 10700.
+        // A code typed beside the name is how a release ends up lower than the build it replaces,
+        // which Android refuses to install as a downgrade.
+        versionName = "1.8.0"
+        versionCode = versionName!!.split(".").let { p ->
+            p[0].toInt() * 10_000 + p[1].toInt() * 100 + p[2].toInt()
+        }
     }
 
     signingConfigs {

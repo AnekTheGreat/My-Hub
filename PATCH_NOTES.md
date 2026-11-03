@@ -4,6 +4,31 @@ What changed in each release, newest first. Everything here ships as a signed AP
 the same build as an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag.
 
+## 1.8.0 — the update that never arrived
+
+### Fixed
+- **A check could come back empty and read as "you are current".** The hub asked `api.github.com`
+  for the newest release without a `User-Agent`, which GitHub refuses with 403, and the anonymous
+  allowance is 60 requests an hour **per address** — a phone on a carrier shares its address with
+  everything behind that gateway, so the limit is reached in normal use. Every request now names
+  the app and its version, and when the API still says no, the newest tag is read from the
+  repository's releases feed, which has no limit and needs no credentials. The APK URL is built
+  from that tag, because `release.yml` names the file after the version.
+- **A download is now checked before the installer sees it.** GitHub can answer with an error page
+  that saves perfectly happily as `myhub-update.apk` and reaches Android as "there was a problem
+  parsing the package". The file has to start with the two bytes every APK starts with, and be big
+  enough to be one; otherwise it is deleted and the hub says the download failed.
+- **The debug APK was as eligible as the release one.** The check took whichever `.apk` came last in
+  the release, so a debug asset would have installed over a release build. The release APK is
+  chosen explicitly and a debug asset is only a fallback.
+- The version comparison, the timeouts and the reason for a failure are all on the log
+  (`MyHubUpdater`) instead of vanishing into a null.
+
+### Changed
+- `versionCode` is computed from `versionName` — 1.8.0 is 10800 — instead of being typed beside it.
+  A release therefore always installs over the build it replaces, and the two numbers cannot drift
+  apart.
+
 ## 1.7.0 — the hub can update itself
 
 ### Added
@@ -38,29 +63,3 @@ the same build as an AAB for Play Console, made by
   `app-release.aab`. Before this, the hub only ever handed out APKs.
 - A release attaches the signed APK **and** its AAB, so Play Console gets the same build a phone
   installs by hand.
-- Both workflows now fail if `app-release.aab` is missing, for the same reason they already failed
-  on a missing `app-release.apk`: Android Gradle Plugin does not fail a build that produced nothing
-  usable, it writes an `-unsigned` file and carries on.
-
-## 1.5.0 — a signed release, and a way to say thank you
-
-### Added
-- **Real release builds.** The hub only ever produced a debug APK because it had no key. It now
-  signs from `SIGNING_STORE_FILE` + `KEYSTORE_PASSWORD` (reconstructed from the `KEYSTORE_BASE64`
-  secret in CI) and publishes on a `v*` tag. No key material is in the repository.
-- **♥ Support My Hub**, in the gear menu: five amounts ($2, $5, $10, $25, $50) paid through the
-  same Stripe Payment Links SideCut's Donate tab opens. The hub hands the link to the browser and
-  nothing unlocks, because there is nothing to unlock.
-
-## 1.4.0 — the hub the apps actually use
-
-### Changed
-- The card list was rebuilt around the apps it is for: **FamTM → MeasureT → UJournal**, then the two
-  slots the phone fills itself. A card that would not open anything is worse than no card.
-- Section headings (**YOUR APPS** / **YOUR SLOTS**), a gradient field behind the cards, and elevation
-  so a card reads as something to press.
-- Card subtitles stay quiet: the app's package name and a launch button are gone, and a card shows
-  only its name, its icon, and at most one line of time.
-
-### Fixed
-- UJournal is found as `app.ujournal`, the id it actually installs under.
