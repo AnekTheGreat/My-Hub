@@ -4,6 +4,13 @@ What changed in each release, newest first. Everything here ships as a signed AP
 the same build as an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag.
 
+## 1.8.2 — the notes that come with the update are whole sentences
+
+### Fixed
+- A note in this file wraps over several lines, and the manifest took only the first of them, so an
+  update would have announced itself with half a sentence. The continuation lines are joined back
+  onto the bullet they belong to, and the markdown emphasis is dropped.
+
 ## 1.8.1 — the release now says what it is
 
 ### Changed
@@ -40,7 +47,7 @@ the same build as an AAB for Play Console, made by
   (`MyHubUpdater`) instead of vanishing into a null.
 
 ### Changed
-- `versionCode` is computed from `versionName` — 1.8.1 is 10801 — instead of being typed beside it.
+- `versionCode` is computed from `versionName` — 1.8.2 is 10802 — instead of being typed beside it.
   A release therefore always installs over the build it replaces, and the two numbers cannot drift
   apart.
 

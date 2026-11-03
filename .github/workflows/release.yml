@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish, e.g. 1.8.1'
+        description: 'Version to publish, e.g. 1.8.2'
         required: true
 
 permissions:
@@ -94,6 +94,8 @@ jobs:
       # The manifest the installed hub reads, the same one every other app here publishes beside
       # itself: version, the file to fetch, its size, and the notes for it taken from PATCH_NOTES.
       # releases/latest/download/updates.json always resolves to the newest release's copy.
+      # A note wraps over several lines in the markdown; the continuation lines are joined back
+      # onto the bullet they belong to, so the manifest carries whole sentences.
       - name: Write the update manifest
         run: |
           python3 - "${{ steps.v.outputs.name }}" "MyHub-${{ steps.v.outputs.name }}.apk" <<'PY'
@@ -107,11 +109,18 @@ jobs:
                   m = re.search(r'^##\s+.*?$(.*?)(?=^##\s|\Z)', md, re.S | re.M)
               if m:
                   for line in m.group(1).splitlines():
-                      line = line.strip()
-                      if line.startswith(('- ', '* ')):
-                          notes.append(re.sub(r'\*\*|`', '', line[2:].strip()))
+                      s = line.strip()
+                      if not s:
+                          continue
+                      if s.startswith(('- ', '* ')):
+                          notes.append(s[2:].strip())
+                      elif s.startswith('#'):
+                          break
+                      elif notes:
+                          notes[-1] += ' ' + s
           except OSError:
               pass
+          notes = [re.sub(r'\*{1,2}|`', '', n) for n in notes]
           manifest = {
               'version': version,
               'apk': apk,
