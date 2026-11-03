@@ -82,13 +82,24 @@ jobs:
       - name: Check the time arithmetic
         run: sh dev/check-usage-sum.sh
 
+      # Flat, versioned names in one folder, the way a release is laid out. Gradle's own tree
+      # (apk/debug, bundle/release, all called app-*) hid the AAB completely: the APK was easy to
+      # find and the bundle was two folders away with no version on it.
+      - name: Name the outputs
+        run: |
+          V="$(grep -oE 'versionName = "[^"]+"' app/build.gradle.kts | head -1 | cut -d'"' -f2)"
+          if [ -z "$V" ]; then echo "::error::could not read versionName"; exit 1; fi
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk        "dist/MyHub-$V-debug.apk"
+          cp app/build/outputs/apk/release/app-release.apk    "dist/MyHub-$V.apk"
+          cp app/build/outputs/bundle/debug/app-debug.aab     "dist/MyHub-$V-debug.aab"
+          cp app/build/outputs/bundle/release/app-release.aab "dist/MyHub-$V.aab"
+          echo '--- dist ---'
+          ls -l dist
+
       - name: Upload the APKs and AABs
         uses: actions/upload-artifact@v4
         with:
           name: MyHub-apk-aab
-          path: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/release/*.apk
-            app/build/outputs/bundle/debug/*.aab
-            app/build/outputs/bundle/release/*.aab
+          path: dist/*
           if-no-files-found: error

@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish, e.g. 1.6.0'
+        description: 'Version to publish, e.g. 1.7.0'
         required: true
 
 permissions:
@@ -53,7 +53,8 @@ jobs:
           echo "name=$V" >> "$GITHUB_OUTPUT"
           echo "releasing $V"
 
-      # A release publishes both formats: the APK for a phone, the AAB for Play Console.
+      # A release attaches both formats, laid out flat and named with the version, the way
+      # SideCut's releases are: an APK to install by hand and the same build as an AAB for Play.
       - name: Build the signed release APK and AAB
         env:
           SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -76,11 +77,14 @@ jobs:
           [ "$STATUS" -eq 0 ] || exit 1
           cp "$APK" "MyHub-${{ steps.v.outputs.name }}.apk"
           cp "$AAB" "MyHub-${{ steps.v.outputs.name }}.aab"
+          ls -l MyHub-*
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.v.outputs.name }}
           name: My Hub ${{ steps.v.outputs.name }}
-          files: MyHub-*
+          files: |
+            MyHub-${{ steps.v.outputs.name }}.apk
+            MyHub-${{ steps.v.outputs.name }}.aab
           generate_release_notes: true
