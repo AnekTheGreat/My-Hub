@@ -45,6 +45,9 @@ class MainActivity : Activity() {
         // drawn, so no card is ever shown a number this version did not earn.
         Usage.migrate(this)
         setContentView(build())
+        // One quiet check per launch. It only speaks when a newer release exists, so a hub that is
+        // already current - or offline - opens exactly as it did before the updater existed.
+        checkUpdates(silent = true)
     }
 
     // Coming back to the hub is also when an app may have been installed or removed, so the whole
@@ -375,7 +378,9 @@ class MainActivity : Activity() {
     }
 
     private fun settings() {
-        val items = mutableListOf("Refresh", "How the hub finds your apps", "\u2665 Support My Hub")
+        val items = mutableListOf(
+            "Refresh", "Check for updates", "How the hub finds your apps", "\u2665 Support My Hub"
+        )
         if (!Usage.granted(this)) items += "Turn on Usage access, to time each app"
         items += "Reset all tracked time"
         AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
@@ -386,6 +391,7 @@ class MainActivity : Activity() {
                         fill()
                         toast("Checked again")
                     }
+                    "Check for updates" -> checkUpdates(silent = false)
                     "How the hub finds your apps" -> about()
                     "\u2665 Support My Hub" -> support()
                     "Reset all tracked time" -> confirmReset()
@@ -394,6 +400,56 @@ class MainActivity : Activity() {
             }
             .setNegativeButton("Close", null)
             .show()
+    }
+
+    /**
+     * Ask GitHub whether a newer My Hub has been published, and offer it.
+     *
+     * The silent form runs once per launch and says nothing unless there is something to offer: a
+     * phone with no connection, or one already running the newest release, sees no difference at
+     * all. The manual form answers either way, so tapping Check for updates never does nothing.
+     */
+    private fun checkUpdates(silent: Boolean) {
+        if (!silent) toast("Checking for updates\u2026")
+        Updater.check { update ->
+            runOnUiThread {
+                if (update != null) offerUpdate(update)
+                else if (!silent) toast("My Hub ${BuildConfig.VERSION_NAME} is the newest there is")
+            }
+        }
+    }
+
+    /** Say what the release changes before a byte of it is downloaded. */
+    private fun offerUpdate(update: Update) {
+        val notes = update.notes.lines()
+            .map { it.trim().removePrefix("-").trim() }
+            .filter { it.isNotEmpty() }
+            .take(8)
+            .joinToString("\n\u2022 ", prefix = "\u2022 ")
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+            .setTitle("My Hub ${update.version} is out")
+            .setMessage(
+                "You have ${BuildConfig.VERSION_NAME}.\n\n" +
+                    (if (notes.isNotEmpty()) "$notes\n\n" else "") +
+                    "It downloads from this repository's releases and hands the file to " +
+                    "Android's installer, which asks before anything is installed."
+            )
+            .setPositiveButton("Download") { _, _ -> fetchUpdate(update) }
+            .setNegativeButton("Later", null)
+            .show()
+    }
+
+    private fun fetchUpdate(update: Update) {
+        // Android will not install a package from an app the owner has not allowed to install, so
+        // the switch is opened first - the alternative is a Download button that does nothing.
+        if (!Updater.ensurePermission(this)) return
+        toast("Downloading My Hub ${update.version}\u2026")
+        Updater.download(this, update) { ok ->
+            runOnUiThread {
+                if (!ok) toast("The download failed - try again when there is a connection")
+                else Updater.install(this)
+            }
+        }
     }
 
     /**
@@ -442,19 +498,23 @@ class MainActivity : Activity() {
             .setTitle("How the hub finds your apps")
             .setMessage(
                 "A card opens the app it found on this phone.\n\n" +
-                    "The three cards the hub was built with look for their apps by package name, " +
+                    "The four cards the hub was built with look for their apps by package name, " +
                     "and if that finds nothing they look for an app whose own name matches. " +
-                    "MeasureT, for instance, installs from the Compass-EDC repository as " +
-                    "com.CompassEDC.myapp, so that is what its card looks for first; UJournal " +
-                    "installs from the Journal repository as app.ujournal.\n\n" +
+                    "SideCut's card opens the release build, com.SideCut.myapp, and knows the name " +
+                    "the phone shows it under, SideCut Play; MeasureT installs from the Compass-EDC " +
+                    "repository as com.CompassEDC.myapp; UJournal installs from the Journal " +
+                    "repository as app.ujournal.\n\n" +
                     "Slot 1 and Slot 2 are yours: they hold nothing until you choose an app for " +
                     "them, and then they take that app's icon and name. Tap an empty slot to " +
                     "choose, or hold one that is filled to change it or empty it again.\n\n" +
                     "Any card can be pointed at any app: press and hold it and choose the one you " +
                     "want. The choice is remembered, and 'Use the default' puts a built-in card " +
                     "back to searching.\n\n" +
-                    "Nothing is sent anywhere: the hub only ever asks this phone what is " +
-                    "installed.\n\n" +
+                    "Nothing about you is sent anywhere. The hub makes one connection of its own: " +
+                    "when it opens it asks GitHub for the newest release of itself, so a new " +
+                    "version can install itself instead of being hunted for. That request is for a " +
+                    "public release and carries nothing else; Check for updates behind the gear " +
+                    "asks again on demand.\n\n" +
                     "When a card has been opened from here, it also says how long that app was " +
                     "actually in front, taken from the phone's own usage log - which stops " +
                     "counting when the screen does or you move to something else, so a night's " +

@@ -32,16 +32,20 @@ hand.
 
 There is no APK in this repository. GitHub builds one for you:
 
-1. Open the [**Releases**](../../releases) page and take the newest `MyHub-<version>.apk`. That is
-the signed build: [release.yml](../../actions/workflows/release.yml) makes it on every `v*` tag, or
-when it is dispatched by hand with a version. The same release carries `MyHub-<version>.aab` for
-Play Console.
-2. Prefer a build from a branch? Open the [**Actions**](../../actions/workflows/build.yml) tab, pick
+1. Install it once from the [**Releases**](../../releases) page — take the newest
+`MyHub-<version>.apk`. That is the signed build:
+[release.yml](../../actions/workflows/release.yml) makes it on every `v*` tag, or when it is
+dispatched by hand with a version. The same release carries `MyHub-<version>.aab` for Play Console.
+2. After that, the hub installs its own updates: it checks for a newer release when it opens, and
+when there is one it says what changed and hands the download to Android's installer. Nothing is
+fetched unless a newer release exists. **Check for updates** in the gear asks on demand.
+3. Prefer a build from a branch? Open the [**Actions**](../../actions/workflows/build.yml) tab, pick
 the newest **Build APK + AAB** run (every push to `main` starts one), and download the
 **MyHub-apk-aab** artifact — it carries `app-debug.apk`, the signed `app-release.apk`, and both
 bundles (`app-debug.aab`, `app-release.aab`).
-3. Copy the APK to your phone and tap it. Android will ask you to allow installing from this
-   source the first time; that is normal for an app that did not come from the Play Store.
+
+Install from Releases rather than an artifact if you want updates to work: the updater compares the
+version it is running with the newest release, and a debug artifact carries a lower version.
 
 Or build it yourself — see [Building](#building).
 
@@ -76,8 +80,21 @@ The card also tells you where it stands: the app's own icon and name when it fou
 quiet *"Not installed · tap to choose an app"* when it did not.
 
 Press and hold any card for **Open**, **Choose the app…** and **App info** — a slot adds **Empty this
-slot** — and use the gear in the top right for **Refresh**, **♥ Support My Hub** and a short
-explanation of the whole thing.
+slot** — and use the gear in the top right for **Refresh**, **Check for updates**, **♥ Support My
+Hub** and a short explanation of the whole thing.
+
+## Updates
+
+My Hub updates itself the same way the apps it launches do:
+
+- On launch it asks GitHub for the newest release of this repository, compares that tag with the
+  version it is running, and **only when the release is newer** shows what changed.
+- **Download** fetches the APK from the release and hands it to Android's installer. Android shows
+  its own confirmation, and the first time you will be asked to allow My Hub to install apps.
+- **Later** changes nothing. So do being offline, being current, and any failed request: a silent
+  check never puts anything on screen unless there is an update to offer.
+- Nothing else about the hub touches the network. There is no account, no identifier and nothing
+  uploaded; the one request is for a public release.
 
 ## What it does not do
 
@@ -86,12 +103,14 @@ explanation of the whole thing.
   but the API 30+ way of saying which apps it is allowed to *see* — and it asks for **Usage access**,
   a one-off switch in Settings rather than a prompt, so it can read how long an app was in front.
   With the switch off, no time is recorded and nothing is guessed — see below.
-- **No network.** There is no internet permission in the manifest, so nothing can be sent anywhere.
-  The tip jar does not change that: it hands a Stripe payment link to the browser and the hub itself
-  never opens a connection.
-- **No libraries.** No AndroidX, no Compose, no third-party code — the APK is a few hundred KB of
-  framework calls, and the only things it keeps are the name of an app you picked by hand (if you
-  ever picked one) and how long each card's app stayed open.
+- **One connection, and only for updates.** `INTERNET` and `REQUEST_INSTALL_PACKAGES` exist so the
+  hub can fetch and install its own next version — see [Updates](#updates). It sends nothing about
+  you anywhere, and the tip jar does not change that either: it hands a Stripe payment link to the
+  browser and the hub itself never opens a connection for it.
+- **No libraries.** No AndroidX, no Compose, no third-party code — the updater is written on the
+  framework, including its own one-file `ContentProvider` in place of androidx `FileProvider`. The
+  only things the hub keeps are the name of an app you picked by hand (if you ever picked one) and
+  how long each card's app stayed open.
 
 ## Seeing the apps at all (Android 11 and later)
 
@@ -103,8 +122,9 @@ could not start it.
 
 The manifest therefore carries a `<queries>` block that declares the launcher signature
 (`MAIN` + `LAUNCHER`), which makes every app with a launcher icon visible — exactly the set the cards
-and the *Choose the app…* list are built from — plus the four package names outright. It is the
-purpose-built alternative to `QUERY_ALL_PACKAGES`, which asks for far more than this needs.
+and the *Choose the app…* list are built from — plus the package names outright, both SideCut ids
+included. It is the purpose-built alternative to `QUERY_ALL_PACKAGES`, which asks for far more than
+this needs.
 
 ## Time on each app
 
@@ -189,6 +209,8 @@ sh dev/check-usage-sum.sh
 app/src/main/java/com/myhub/app/
     Apps.kt          the apps, how each is found, the remembered choice, and the time kept
     Support.kt       the tip jar: five Stripe Payment Links, and the browser hand-off
+    Updater.kt       the OTA check, the download, and the install hand-off
+    ApkProvider.kt   one file served to the installer, in place of androidx FileProvider
     UsageSum.kt      the usage-log arithmetic, kept Android-free so dev/ can check it
     MainActivity.kt  the hub screen, its cards, the picker, and the clock
  dev/               the time arithmetic's own check
@@ -198,4 +220,4 @@ app/src/main/res/    colours, theme, settings gear, launcher icon
 
 ## Version
 
-`1.6.0` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 34 (Android 14).
+`1.7.0` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 34 (Android 14).
