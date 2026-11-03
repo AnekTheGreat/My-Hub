@@ -17,13 +17,18 @@ import java.net.URL
 data class Update(val version: String, val url: String, val notes: String)
 
 /**
- * OTA updates: ask GitHub for the newest release of this repository, compare its tag with the
- * version this build carries, and - only when that release is newer - download the APK and hand it
- * to Android's own installer.
+ * OTA updates: read what the newest release is, compare it with the version this build carries,
+ * and - only when that release is newer - download the APK and hand it to Android's installer.
  *
- * This is the hub's ONLY use of the network, and it is why the app asks for INTERNET. The request
- * is a GET for one public release, then the download of the APK itself: no account, no identifier,
- * nothing uploaded, and no traffic at all unless the phone has a release to look at.
+ * This is the hub's ONLY use of the network, and it is why the app asks for INTERNET. Nothing is
+ * uploaded; there is no account and no identifier, and no traffic at all unless there is a
+ * release to look at.
+ *
+ * The answer comes from a small manifest published WITH the release, which is the same shape
+ * SideCut, MeasureT and FamTM use: updates.json holding the version, the file, its size and the
+ * notes for it. One fixed URL, no API, no tag parsing, and the changelog travels with the build
+ * instead of being reconstructed on the phone. The GitHub API and the releases feed are kept as
+ * fallbacks for a release that predates the manifest.
  *
  * The file is downloaded into the hub's own cache and served to the installer by [ApkProvider],
  * because a file:// URI cannot be handed to another app since Android 7. That provider is written
@@ -34,16 +39,24 @@ object Updater {
 
     private const val TAG = "MyHubUpdater"
     private const val REPO = "AnekTheGreat/My-Hub"
+
+    /**
+     * The manifest attached to the newest release. `releases/latest/download/<asset>` always
+     * resolves to that release's copy of the asset, so the address never changes - the same trick
+     * SideCut's ota/updates.json plays from its published site.
+     */
+    private const val MANIFEST = "https://github.com/$REPO/releases/latest/download/updates.json"
+    private const val DOWNLOADS = "https://github.com/$REPO/releases/download"
+
     private const val LATEST = "https://api.github.com/repos/$REPO/releases/latest"
 
     /**
-     * The releases feed, read when the API will not answer.
+     * The releases feed, read when neither the manifest nor the API answers.
      *
      * api.github.com allows 60 anonymous requests an hour per address, and a phone on a carrier
      * shares its address with everything else behind that gateway, so "rate limit exceeded" is an
-     * ordinary reply rather than a rare one. GitHub's feeds carry no such limit and need no
-     * credentials, so the newest tag is taken from there. The file name is fixed by release.yml
-     * (MyHub-<version>.apk), which is what makes the download URL predictable from the tag alone.
+     * ordinary reply. GitHub's feeds carry no such limit and need no credentials, and the file name
+     * is fixed by release.yml (MyHub-<version>.apk), which makes the download URL predictable.
      */
     private const val FEED = "https://github.com/$REPO/releases.atom"
 
@@ -66,8 +79,53 @@ object Updater {
     }
 
     private fun fetch(): Update? {
+        val manifest = manifestJson()
+        if (manifest != null) return fromManifest(manifest)
         val json = apiJson()
         return if (json != null) fromJson(json) else fromFeed()
+    }
+
+    /** The manifest's text, or null when the newest release does not carry one. */
+    private fun manifestJson(): String? = try {
+        val c = open(MANIFEST)
+        val code = c.responseCode
+        if (code == 200) c.inputStream.bufferedReader().use { it.readText() } else {
+            Log.w(TAG, "no manifest at the newest release ($code)")
+            null
+        }
+    } catch (e: Exception) {
+        Log.w(TAG, "manifest unreachable: ${e.javaClass.simpleName}")
+        null
+    }
+
+    /**
+     * {"version":"1.8.1","apk":"MyHub-1.8.1.apk","size":646318,"notes":["..."],"date":"..."}
+     * - the same keys SideCut's ota/updates.json and MeasureT's updates.json carry.
+     */
+    private fun fromManifest(text: String): Update? = try {
+        val j = JSONObject(text)
+        val v = j.optString("version").removePrefix("v")
+        val apk = j.optString("apk")
+        when {
+            v.isEmpty() -> {
+                Log.w(TAG, "the manifest names no version")
+                null
+            }
+            apk.isEmpty() -> {
+                Log.w(TAG, "the manifest names no APK")
+                null
+            }
+            !newer(v, BuildConfig.VERSION_NAME) -> null
+            else -> {
+                val notes = j.optJSONArray("notes")?.let { a ->
+                    (0 until a.length()).joinToString("\n") { a.optString(it) }
+                } ?: ""
+                Update(v, "$DOWNLOADS/v$v/$apk", notes)
+            }
+        }
+    } catch (e: Exception) {
+        Log.w(TAG, "unreadable manifest: ${e.javaClass.simpleName}")
+        null
     }
 
     /** The newest release as JSON, or null when the API answered with anything but 200. */
@@ -141,7 +199,7 @@ object Updater {
                 if (!newer(v, BuildConfig.VERSION_NAME)) null
                 else Update(
                     v,
-                    "https://github.com/$REPO/releases/download/$tag/MyHub-$v.apk",
+                    "$DOWNLOADS/$tag/MyHub-$v.apk",
                     "Published on GitHub."
                 )
             }

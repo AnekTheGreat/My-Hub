@@ -4,16 +4,31 @@ What changed in each release, newest first. Everything here ships as a signed AP
 the same build as an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag.
 
+## 1.8.1 — the release now says what it is
+
+### Changed
+- **The update comes from a manifest published with the release**, the way every other app here
+  does it — SideCut's `ota/updates.json`, MeasureT's `updates.json`, FamTM's published page. The
+  release job writes `updates.json` beside the APK and attaches it, carrying the version, the file
+  name, its size and the notes for it taken from this file, and the hub reads that one fixed URL
+  (`releases/latest/download/updates.json`) instead of parsing an API response and a release tag.
+  The changelog therefore travels with the build rather than being reconstructed on the phone, and
+  an update check no longer depends on an API that rate-limits by address.
+- The API and the releases feed stay behind that as fallbacks, so a release that predates the
+  manifest is still found.
+
+### Fixed
+- `versionName` was read by the release job to check the tag; the check now also means the manifest
+  cannot advertise one version while the APK carries another.
+
 ## 1.8.0 — the update that never arrived
 
 ### Fixed
 - **A check could come back empty and read as "you are current".** The hub asked `api.github.com`
   for the newest release without a `User-Agent`, which GitHub refuses with 403, and the anonymous
   allowance is 60 requests an hour **per address** — a phone on a carrier shares its address with
-  everything behind that gateway, so the limit is reached in normal use. Every request now names
-  the app and its version, and when the API still says no, the newest tag is read from the
-  repository's releases feed, which has no limit and needs no credentials. The APK URL is built
-  from that tag, because `release.yml` names the file after the version.
+  everything behind that gateway, so the limit is reached in normal use. API and feed requests now
+  name the app and its version.
 - **A download is now checked before the installer sees it.** GitHub can answer with an error page
   that saves perfectly happily as `myhub-update.apk` and reaches Android as "there was a problem
   parsing the package". The file has to start with the two bytes every APK starts with, and be big
@@ -25,7 +40,7 @@ the same build as an AAB for Play Console, made by
   (`MyHubUpdater`) instead of vanishing into a null.
 
 ### Changed
-- `versionCode` is computed from `versionName` — 1.8.0 is 10800 — instead of being typed beside it.
+- `versionCode` is computed from `versionName` — 1.8.1 is 10801 — instead of being typed beside it.
   A release therefore always installs over the build it replaces, and the two numbers cannot drift
   apart.
 

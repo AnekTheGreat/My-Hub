@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish, e.g. 1.7.0'
+        description: 'Version to publish, e.g. 1.8.1'
         required: true
 
 permissions:
@@ -53,6 +53,18 @@ jobs:
           echo "name=$V" >> "$GITHUB_OUTPUT"
           echo "releasing $V"
 
+      # The version the APK carries is the one build.gradle.kts names, and the updater compares
+      # its own version with this release's. If they disagree, every installed copy is offered a
+      # release it will then refuse to install, so the mismatch stops the run here.
+      - name: Check the tag matches the version the APK will carry
+        run: |
+          BUILT="$(grep -oE 'versionName = "[^"]+"' app/build.gradle.kts | head -1 | cut -d'"' -f2)"
+          echo "tag says ${{ steps.v.outputs.name }}, gradle says $BUILT"
+          if [ "$BUILT" != "${{ steps.v.outputs.name }}" ]; then
+            echo "::error::build.gradle.kts names $BUILT but this release is ${{ steps.v.outputs.name }}"
+            exit 1
+          fi
+
       # A release attaches both formats, laid out flat and named with the version, the way
       # SideCut's releases are: an APK to install by hand and the same build as an AAB for Play.
       - name: Build the signed release APK and AAB
@@ -79,6 +91,39 @@ jobs:
           cp "$AAB" "MyHub-${{ steps.v.outputs.name }}.aab"
           ls -l MyHub-*
 
+      # The manifest the installed hub reads, the same one every other app here publishes beside
+      # itself: version, the file to fetch, its size, and the notes for it taken from PATCH_NOTES.
+      # releases/latest/download/updates.json always resolves to the newest release's copy.
+      - name: Write the update manifest
+        run: |
+          python3 - "${{ steps.v.outputs.name }}" "MyHub-${{ steps.v.outputs.name }}.apk" <<'PY'
+          import json, os, re, sys
+          version, apk = sys.argv[1], sys.argv[2]
+          notes = []
+          try:
+              md = open('PATCH_NOTES.md', encoding='utf-8').read()
+              m = re.search(r'^##\s+' + re.escape(version) + r'\b.*?$(.*?)(?=^##\s|\Z)', md, re.S | re.M)
+              if m is None:
+                  m = re.search(r'^##\s+.*?$(.*?)(?=^##\s|\Z)', md, re.S | re.M)
+              if m:
+                  for line in m.group(1).splitlines():
+                      line = line.strip()
+                      if line.startswith(('- ', '* ')):
+                          notes.append(re.sub(r'\*\*|`', '', line[2:].strip()))
+          except OSError:
+              pass
+          manifest = {
+              'version': version,
+              'apk': apk,
+              'size': os.path.getsize(apk),
+              'notes': notes[:6],
+              'date': '',
+          }
+          with open('updates.json', 'w', encoding='utf-8') as f:
+              json.dump(manifest, f, ensure_ascii=False)
+          print(open('updates.json', encoding='utf-8').read())
+          PY
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
@@ -87,4 +132,5 @@ jobs:
           files: |
             MyHub-${{ steps.v.outputs.name }}.apk
             MyHub-${{ steps.v.outputs.name }}.aab
+            updates.json
           generate_release_notes: true
