@@ -7,9 +7,8 @@ yours are your apps instead of games — and the last two cards are slots you fi
 | Card | What it opens |
 | --- | --- |
 | **FamTM** | the FamTM APK |
-| **SideCut** | the SideCut APK, the Play build |
-| **SideCut Full** | the SideCut APK, the sideloaded full build |
 | **MeasureT** | the MeasureT APK |
+| **UJournal** | the UJournal APK |
 | **Slot 1**, **Slot 2** | whatever app you put in them |
 
 Tapping a card opens that app. Coming back to the hub puts you back at the top of the list, ready
@@ -22,6 +21,11 @@ the phone, and from then on it wears that app's icon and name and opens it like 
 Hold a filled slot for **Change the app…** or **Empty this slot**, which puts it back to empty
 without touching the time it earned. Nothing about a slot is baked into the APK, so nothing about it
 can go stale.
+
+These two cards used to be *SideCut* and *SideCut Full*. Two cards existed only because SideCut
+publishes two builds, and a pair of cards that name an app can never open the other build. The slots
+replace them: put either SideCut build in a slot, or anything else, and it stays right even when the
+app is renamed.
 
 ## Install
 
@@ -42,15 +46,8 @@ The hub ships knowing which app each card is meant to be, and asks your phone fo
 | Card | Package it looks for | If that is not installed |
 | --- | --- | --- |
 | FamTM | `com.familytree.app` | looks for an app named FamTM or Family Tree |
-| SideCut | `com.SideCut.myapp` | looks for an app named "SideCut Play" or "SideCut" |
-| SideCut Full | `com.SideCut.myapp.full` | looks for an app named "SideCut Full" |
 | MeasureT | `com.CompassEDC.myapp` | looks for an app named "MeasureT", "Measure T", "Measure", "Compass EDC" or "CompassEDC" |
-
-SideCut is published twice from one pipeline, and the two builds are made to be installed side by
-side: the Play build is `com.SideCut.myapp` and named *SideCut*, and the sideloaded full build is
-`com.SideCut.myapp.full` and named *SideCut Full*. Because they are two separate apps on the phone,
-they get a card each — one card could only ever open one of them. If you have one of the two, the
-other card says so, and tapping it points the card somewhere else.
+| UJournal | `app.ujournal` | looks for an app named "UJournal" or "Journal" |
 
 MeasureT is built out of the Compass-EDC repository, and the applicationId that repository's
 Capacitor config gives the APK is `com.CompassEDC.myapp` — so that is the package its card looks
@@ -58,12 +55,16 @@ for. The name it shipped under before it was renamed, *Compass EDC*, is looked f
 still carrying that install opens from the same card rather than from one that says there is
 nothing there.
 
+UJournal is built out of the Journal repository and installs as `app.ujournal`, which is what its
+card looks for.
+
 If a card still finds nothing at all, **press and hold it** and choose the app from a list of
 everything installed on the phone. The hub remembers the choice, and *Use the default* on that same
 screen puts the card back to searching by itself.
 
 The card also tells you where it stands: the app's own icon and name when it found something, and a
-quiet *"Not installed · tap to choose an app"* when it did not.
+quiet *"Not installed · tap to choose an app"* when it did not. An empty slot says *"Empty · tap to
+put an app here"* instead, because an empty slot is not a fault.
 
 Press and hold any card for **Open**, **Choose the app…** and **App info** — a slot adds **Empty this
 slot** — and use the gear in the top right for **Refresh** and a short explanation of the whole
@@ -91,7 +92,7 @@ could not start it.
 
 The manifest therefore carries a `<queries>` block that declares the launcher signature
 (`MAIN` + `LAUNCHER`), which makes every app with a launcher icon visible — exactly the set the cards
-and the *Choose the app…* list are built from — plus the four package names outright. It is the
+and the *Choose the app…* list are built from — plus the three package names outright. It is the
 purpose-built alternative to `QUERY_ALL_PACKAGES`, which asks for far more than this needs.
 
 ## Time on each app
@@ -113,7 +114,7 @@ version that added the usage log clears those old totals once, on first run, bec
 separated from time that was never spent.
 
 A card only grows that second line once it has time to show, so a fresh hub is just icons and
-names; the header does the same, and appears only when a card is still empty or there is time to
+names; the header does the same, and appears only when a card still needs an app or there is time to
 report. Press and hold a card for **Reset this card's time**, or use the gear for **Reset all
 tracked time**.
 
@@ -155,4 +156,4 @@ app/src/main/res/    colours, theme, settings gear, launcher icon
 
 ## Version
 
-`1.3.0` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 34 (Android 14).
+`1.4.0` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 34 (Android 14).

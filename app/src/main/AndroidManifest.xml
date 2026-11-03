@@ -22,8 +22,11 @@
       The intent below is the launcher signature: declaring it makes every app with a launcher
       icon visible, which is exactly the set a hub wants - the cards' own apps and the "choose the
       app" list are both built from it. It is the purpose-built alternative to QUERY_ALL_PACKAGES,
-      which asks for far more than this needs. The four packages are named outright as well, so a
+      which asks for far more than this needs. The three packages are named outright as well, so a
       build that is present but has no launcher activity of its own is still visible to its card.
+
+      The two slots need nothing here: a slot is an app chosen by hand from the launcher list, and
+      that list is already visible through the intent above.
     -->
     <queries>
         <intent>
@@ -31,9 +34,8 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
         <package android:name="com.familytree.app" />
-        <package android:name="com.SideCut.myapp" />
-        <package android:name="com.SideCut.myapp.full" />
         <package android:name="com.CompassEDC.myapp" />
+        <package android:name="app.ujournal" />
     </queries>
 
     <application

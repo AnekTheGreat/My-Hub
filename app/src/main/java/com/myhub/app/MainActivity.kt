@@ -24,6 +24,7 @@ import java.util.Locale
 // The palette: the navy of OnePlus Game Space, and nothing else. The screen carries no red any
 // more - a card is a name, an icon and, when there is something to say, one quiet line.
 private val BG = Color.parseColor("#0C1A2B")
+private val BG_TOP = Color.parseColor("#10243B")
 private val CARD = Color.parseColor("#16283F")
 private val CARD_DOWN = Color.parseColor("#1C314C")
 private val LINE = Color.parseColor("#22344C")
@@ -61,23 +62,28 @@ class MainActivity : Activity() {
     private fun build(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(BG)
+            // One soft wash from the top instead of a flat field: the cards then sit on something
+            // rather than float in it, and the header has an edge to disappear into.
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR, intArrayOf(BG_TOP, BG)
+            )
             fitsSystemWindows = true
         }
-        window.statusBarColor = BG
+        window.statusBarColor = BG_TOP
         window.navigationBarColor = BG
 
         // The header is the app's name and one control. Nothing counts itself up here.
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(22), dp(24), dp(10), 0)
+            setPadding(dp(22), dp(26), dp(10), 0)
         }
         bar.addView(TextView(this).apply {
             text = "My Hub"
             setTextColor(INK)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 27f)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            letterSpacing = -0.01f
         }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         bar.addView(ImageView(this).apply {
             setImageResource(R.drawable.ic_settings)
@@ -94,16 +100,17 @@ class MainActivity : Activity() {
         summary = TextView(this).apply {
             setTextColor(MUTE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
-            setPadding(dp(22), dp(3), dp(22), dp(6))
+            setPadding(dp(22), dp(4), dp(22), dp(2))
         }
         root.addView(summary)
 
         list = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(10), dp(16), dp(8))
+            setPadding(dp(16), dp(0), dp(16), dp(20))
         }
         root.addView(ScrollView(this).apply {
             isFillViewport = true
+            isVerticalScrollBarEnabled = false
             addView(list)
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
@@ -112,7 +119,7 @@ class MainActivity : Activity() {
             setTextColor(CHEVRON)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             gravity = Gravity.CENTER
-            setPadding(dp(16), dp(6), dp(16), dp(16))
+            setPadding(dp(16), dp(8), dp(16), dp(18))
         })
         return root
     }
@@ -120,7 +127,19 @@ class MainActivity : Activity() {
     private fun fill() {
         list.removeAllViews()
         var missing = 0
+        var appsTitled = false
+        var slotsTitled = false
         for (entry in Apps.ALL) {
+            // Two headings, so the free slots read as a group of their own instead of trailing the
+            // apps that came with the hub.
+            if (!entry.slot && !appsTitled) {
+                list.addView(section("YOUR APPS"))
+                appsTitled = true
+            }
+            if (entry.slot && !slotsTitled) {
+                list.addView(section("YOUR SLOTS"))
+                slotsTitled = true
+            }
             val pkg = Apps.resolve(this, entry)
             // An empty slot is not a problem to report: it is empty because nobody filled it yet.
             if (pkg == null && !entry.slot) missing++
@@ -129,11 +148,21 @@ class MainActivity : Activity() {
         val presets = Apps.ALL.count { !it.slot }
         val tracked = Usage.totalAll(this)
         summary.text = when {
-            missing > 0 -> "$missing of $presets cards still need an app"
+            missing > 0 -> "$missing of $presets apps still need to be added"
             tracked > 0L -> "${Usage.human(tracked)} across your apps"
             else -> ""
         }
         summary.visibility = if (summary.text.isEmpty()) View.GONE else View.VISIBLE
+    }
+
+    /** A quiet heading over a group of cards: small, spaced out, and gone again on the next fill. */
+    private fun section(text: String) = TextView(this).apply {
+        this.text = text
+        setTextColor(CHEVRON)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f)
+        letterSpacing = 0.18f
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        setPadding(dp(8), dp(16), dp(8), dp(9))
     }
 
     /**
@@ -146,8 +175,9 @@ class MainActivity : Activity() {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(14), dp(13), dp(14), dp(13))
+            setPadding(dp(15), dp(14), dp(15), dp(14))
             background = rowBackground(here)
+            elevation = dp(2).toFloat()
             isClickable = true
             isFocusable = true
             setOnClickListener { if (here) open(entry, pkg!!) else pick(entry) }
@@ -161,13 +191,15 @@ class MainActivity : Activity() {
 
         val details = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), 0, dp(6), 0)
+            setPadding(dp(15), 0, dp(8), 0)
         }
         details.addView(TextView(this).apply {
             text = title(entry, pkg)
             setTextColor(if (here) INK else MUTE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
         })
         val sub = subtitle(entry, pkg)
         if (sub != null) {
@@ -176,7 +208,9 @@ class MainActivity : Activity() {
                 text = sub
                 setTextColor(if (timed) TIMED else MUTE)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
-                setPadding(0, dp(3), 0, 0)
+                setPadding(0, dp(4), 0, 0)
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
             })
         }
         row.addView(details, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -184,7 +218,7 @@ class MainActivity : Activity() {
         row.addView(TextView(this).apply {
             text = "\u203A"
             setTextColor(CHEVRON)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 21f)
         })
         return row
     }
@@ -195,7 +229,7 @@ class MainActivity : Activity() {
 
     /** The one line under a name, or null when there is nothing worth saying. */
     private fun subtitle(entry: HubApp, pkg: String?): String? = when {
-        pkg == null && entry.slot -> "Empty \u00B7 tap to choose an app"
+        pkg == null && entry.slot -> "Empty \u00B7 tap to put an app here"
         pkg == null -> "Not installed \u00B7 tap to choose an app"
         Usage.total(this, entry.id) > 0L -> usageLine(entry)
         else -> null
@@ -216,11 +250,11 @@ class MainActivity : Activity() {
             TextView(this).apply {
                 text = if (entry.slot) "+" else entry.title.trim().take(1).uppercase(Locale.ROOT)
                 setTextColor(MUTE)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, if (entry.slot) 22f else 18f)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, if (entry.slot) 21f else 18f)
                 gravity = Gravity.CENTER
                 typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-                background = if (entry.slot) rounded(Color.TRANSPARENT, 12f, LINE)
-                else rounded(Color.parseColor("#1D3459"), 12f)
+                background = if (entry.slot) rounded(Color.TRANSPARENT, 13f, LINE)
+                else rounded(Color.parseColor("#1D3459"), 13f)
             }
         }
         view.layoutParams = LinearLayout.LayoutParams(size, size)
@@ -231,11 +265,11 @@ class MainActivity : Activity() {
     private fun rowBackground(hasApp: Boolean): StateListDrawable = StateListDrawable().apply {
         addState(
             intArrayOf(android.R.attr.state_pressed),
-            if (hasApp) rounded(CARD_DOWN, 18f) else rounded(Color.TRANSPARENT, 18f, LINE_DOWN)
+            if (hasApp) rounded(CARD_DOWN, 20f) else rounded(Color.TRANSPARENT, 20f, LINE_DOWN)
         )
         addState(
             intArrayOf(),
-            if (hasApp) rounded(CARD, 18f) else rounded(Color.TRANSPARENT, 18f, LINE)
+            if (hasApp) rounded(CARD, 20f) else rounded(Color.TRANSPARENT, 20f, LINE)
         )
     }
 
@@ -393,10 +427,11 @@ class MainActivity : Activity() {
             .setTitle("How the hub finds your apps")
             .setMessage(
                 "A card opens the app it found on this phone.\n\n" +
-                    "The four cards the hub was built with look for their apps by package name, " +
+                    "The three cards the hub was built with look for their apps by package name, " +
                     "and if that finds nothing they look for an app whose own name matches. " +
                     "MeasureT, for instance, installs from the Compass-EDC repository as " +
-                    "com.CompassEDC.myapp, so that is what its card looks for first.\n\n" +
+                    "com.CompassEDC.myapp, so that is what its card looks for first; UJournal " +
+                    "installs from the Journal repository as app.ujournal.\n\n" +
                     "Slot 1 and Slot 2 are yours: they hold nothing until you choose an app for " +
                     "them, and then they take that app's icon and name. Tap an empty slot to " +
                     "choose, or hold one that is filled to change it or empty it again.\n\n" +

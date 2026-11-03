@@ -44,27 +44,6 @@ object Apps {
             aliases = listOf("FamTM", "Family Tree")
         ),
         HubApp(
-            id = "sidecut",
-            title = "SideCut",
-            // The Play build. Its applicationId is com.SideCut.myapp, and on the phone it lists
-            // itself as "SideCut Play". Looking for the name "SideCut" alone could never match
-            // that label, which is how this card ended up saying "Not installed" on a phone that
-            // had the app on it all along; the store name is looked for first now.
-            packages = listOf("com.SideCut.myapp", "com.SideCut.play"),
-            aliases = listOf("SideCut Play", "SideCut")
-        ),
-        HubApp(
-            id = "sidecutfull",
-            title = "SideCut Full",
-            // SideCut is published twice from one pipeline: the Play build above, and this one — the
-            // complete build, sideloaded only. It is given its own applicationId and its own name
-            // exactly so the two can be installed side by side, so each gets a card of its own here:
-            // one card that opened whichever happened to be installed would always have opened the
-            // Play build and left this one unreachable.
-            packages = listOf("com.SideCut.myapp.full"),
-            aliases = listOf("SideCut Full")
-        ),
-        HubApp(
             id = "measuret",
             title = "MeasureT",
             // MeasureT is built out of the Compass-EDC repository, and the applicationId that
@@ -84,11 +63,26 @@ object Apps {
             // build that has moved to the new name always wins.
             aliases = listOf("MeasureT", "Measure T", "Measure", "Compass EDC", "CompassEDC")
         ),
+        HubApp(
+            id = "journal",
+            title = "UJournal",
+            // UJournal is built out of the Journal repository, and its applicationId has been
+            // app.ujournal from the first commit -- the same id the release workflow signs. The
+            // names are there for a phone that somehow carries the APK under another id: the app
+            // calls itself UJournal in its own launcher label, so that is what is looked for.
+            packages = listOf("app.ujournal"),
+            aliases = listOf("UJournal", "Journal")
+        ),
         // The two slots. A slot is not built for anything: it carries no package names and no
         // aliases, so it resolves to nothing until an app is chosen by hand - which is what an
         // empty slot should do - and from then on it opens whatever that app is. Nothing about a
         // slot is baked in, so nothing about it goes stale: the choice lives in the same
         // remembered binding every other card already has, and Clear puts it back to empty.
+        //
+        // These two cards used to be SideCut and SideCut Full. Two cards for one app only existed
+        // because shipping two builds forced it, and the pair could never open each other: a card
+        // that names an app is a card that goes stale. The slots replace them, so anything at all
+        // - either SideCut build included - can live here now.
         HubApp(
             id = "slot1",
             title = "Slot 1",
@@ -189,7 +183,7 @@ object Apps {
  * separated from the hours that were never spent.
  *
  * Nothing runs in the background: the log is read once, when the hub is resumed. A total is per
- * card, not per package: SideCut and SideCut Full are two cards and are timed separately.
+ * card, not per package: two cards pointed at the same app are timed separately.
  */
 object Usage {
 
