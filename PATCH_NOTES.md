@@ -4,6 +4,26 @@ What changed in each release, newest first. Everything here ships as a signed AP
 the same build as an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag.
 
+## 1.7.0 — the hub can update itself
+
+### Added
+- **Over-the-air updates.** On launch the hub asks GitHub for the newest release of this repository,
+  and — only when that release is newer than the build on the phone — offers what changed, downloads
+  the APK and hands it to Android's installer. The gear gains **Check for updates** for the manual
+  case.
+- The check is silent: current, offline, or no answer all look exactly like before. Nothing is
+  downloaded unless there is a newer release.
+
+### Changed
+- The manifest now asks for **INTERNET** and **REQUEST_INSTALL_PACKAGES**. That is the hub's only
+  connection and it exists for this: one GET for a public release, then the APK itself. There is no
+  account, no identifier, and nothing uploaded — the README previously said the hub never touches
+  the network, and now says what the one request is for.
+- The updater is written on the framework, not on a library: a thread and `HttpURLConnection` for
+  the check and the download, `org.json` for the release, and `ApkProvider` — a one-file
+  `ContentProvider` — for the hand-off to the installer, because `file://` URIs have been refused
+  since Android 7. The hub still has no dependencies.
+
 ## 1.6.0 — SideCut is a card again, and every build has an AAB
 
 ### Added
@@ -30,7 +50,7 @@ the same build as an AAB for Play Console, made by
   secret in CI) and publishes on a `v*` tag. No key material is in the repository.
 - **♥ Support My Hub**, in the gear menu: five amounts ($2, $5, $10, $25, $50) paid through the
   same Stripe Payment Links SideCut's Donate tab opens. The hub hands the link to the browser and
-  still has no internet permission; nothing unlocks, because there is nothing to unlock.
+  nothing unlocks, because there is nothing to unlock.
 
 ## 1.4.0 — the hub the apps actually use
 
