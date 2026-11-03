@@ -375,7 +375,7 @@ class MainActivity : Activity() {
     }
 
     private fun settings() {
-        val items = mutableListOf("Refresh", "How the hub finds your apps")
+        val items = mutableListOf("Refresh", "How the hub finds your apps", "\u2665 Support My Hub")
         if (!Usage.granted(this)) items += "Turn on Usage access, to time each app"
         items += "Reset all tracked time"
         AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
@@ -387,11 +387,26 @@ class MainActivity : Activity() {
                         toast("Checked again")
                     }
                     "How the hub finds your apps" -> about()
+                    "\u2665 Support My Hub" -> support()
                     "Reset all tracked time" -> confirmReset()
                     else -> usageAccess()
                 }
             }
             .setNegativeButton("Close", null)
+            .show()
+    }
+
+    /**
+     * The tip jar. The five amounts are Stripe Payment Links - fixed amounts on a page Stripe
+     * hosts - so the hub only hands a URL to the browser. Nothing unlocks, no key is here, and
+     * there is no server of ours in between.
+     */
+    private fun support() {
+        val labels = Support.LINKS.map { Support.label(it.first) }.toTypedArray()
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+            .setTitle("Support My Hub")
+            .setItems(labels) { _, which -> Support.open(this, Support.LINKS[which].second) }
+            .setNegativeButton("Not now", null)
             .show()
     }
 
