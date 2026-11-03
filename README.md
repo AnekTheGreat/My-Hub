@@ -7,8 +7,9 @@ yours are your apps instead of games — and the last two cards are slots you fi
 | Card | What it opens |
 | --- | --- |
 | **FamTM** | the FamTM APK |
+| **SideCut** | the SideCut APK, the Play build |
+| **SideCut Full** | the SideCut APK, the sideloaded full build |
 | **MeasureT** | the MeasureT APK |
-| **UJournal** | the UJournal APK |
 | **Slot 1**, **Slot 2** | whatever app you put in them |
 
 Tapping a card opens that app. Coming back to the hub puts you back at the top of the list, ready
@@ -22,18 +23,16 @@ Hold a filled slot for **Change the app…** or **Empty this slot**, which puts 
 without touching the time it earned. Nothing about a slot is baked into the APK, so nothing about it
 can go stale.
 
-These two cards used to be *SideCut* and *SideCut Full*. Two cards existed only because SideCut
-publishes two builds, and a pair of cards that name an app can never open the other build. The slots
-replace them: put either SideCut build in a slot, or anything else, and it stays right even when the
-app is renamed.
-
 ## Install
 
 There is no APK in this repository. GitHub builds one for you:
 
-1. Open the [**Actions**](../../actions/workflows/build.yml) tab and pick the newest **Build APK**
-   run (every push to `main` starts one).
-2. Download the **MyHub-debug-apk** artifact and unzip it — you get `app-debug.apk`.
+1. Open the [**Releases**](../../releases) page and take the newest `MyHub-<version>.apk`. That is
+the signed build: [release.yml](../../actions/workflows/release.yml) makes it on every `v*` tag, or
+when it is dispatched by hand with a version.
+2. Prefer a build from a branch? Open the [**Actions**](../../actions/workflows/build.yml) tab, pick
+the newest **Build APK** run (every push to `main` starts one), and download the **MyHub-apk**
+artifact — it carries both `app-debug.apk` and the signed `app-release.apk`.
 3. Copy that file to your phone and tap it. Android will ask you to allow installing from this
    source the first time; that is normal for an app that did not come from the Play Store.
 
@@ -46,29 +45,33 @@ The hub ships knowing which app each card is meant to be, and asks your phone fo
 | Card | Package it looks for | If that is not installed |
 | --- | --- | --- |
 | FamTM | `com.familytree.app` | looks for an app named FamTM or Family Tree |
+| SideCut | `com.SideCut.myapp` | looks for an app named "SideCut Play" or "SideCut" |
+| SideCut Full | `com.SideCut.myapp.full` | looks for an app named "SideCut Full" |
 | MeasureT | `com.CompassEDC.myapp` | looks for an app named "MeasureT", "Measure T", "Measure", "Compass EDC" or "CompassEDC" |
-| UJournal | `app.ujournal` | looks for an app named "UJournal" or "Journal" |
+| UJournal | `app.ujournal` | looks for an app named "UJournal" or "Ultimate Journal" |
+
+SideCut is published twice from one pipeline, and the two builds are made to be installed side by
+side: the Play build is `com.SideCut.myapp` and named *SideCut*, and the sideloaded full build is
+`com.SideCut.myapp.full` and named *SideCut Full*. Because they are two separate apps on the phone,
+they get a card each — one card could only ever open one of them. If you have one of the two, the
+other card says so, and tapping it points the card somewhere else.
 
 MeasureT is built out of the Compass-EDC repository, and the applicationId that repository's
 Capacitor config gives the APK is `com.CompassEDC.myapp` — so that is the package its card looks
 for. The name it shipped under before it was renamed, *Compass EDC*, is looked for too, so a phone
 still carrying that install opens from the same card rather than from one that says there is
-nothing there.
-
-UJournal is built out of the Journal repository and installs as `app.ujournal`, which is what its
-card looks for.
+nothing there. UJournal installs from the Journal repository as `app.ujournal`.
 
 If a card still finds nothing at all, **press and hold it** and choose the app from a list of
 everything installed on the phone. The hub remembers the choice, and *Use the default* on that same
 screen puts the card back to searching by itself.
 
 The card also tells you where it stands: the app's own icon and name when it found something, and a
-quiet *"Not installed · tap to choose an app"* when it did not. An empty slot says *"Empty · tap to
-put an app here"* instead, because an empty slot is not a fault.
+quiet *"Not installed · tap to choose an app"* when it did not.
 
 Press and hold any card for **Open**, **Choose the app…** and **App info** — a slot adds **Empty this
-slot** — and use the gear in the top right for **Refresh** and a short explanation of the whole
-thing.
+slot** — and use the gear in the top right for **Refresh**, **♥ Support My Hub** and a short
+explanation of the whole thing.
 
 ## What it does not do
 
@@ -78,9 +81,11 @@ thing.
   a one-off switch in Settings rather than a prompt, so it can read how long an app was in front.
   With the switch off, no time is recorded and nothing is guessed — see below.
 - **No network.** There is no internet permission in the manifest, so nothing can be sent anywhere.
+  The tip jar does not change that: it hands a Stripe payment link to the browser and the hub itself
+  never opens a connection.
 - **No libraries.** No AndroidX, no Compose, no third-party code — the APK is a few hundred KB of
   framework calls, and the only things it keeps are the name of an app you picked by hand (if you
-  ever picked one) and how long each card's app stayed open.
+ever picked one) and how long each card's app stayed open.
 
 ## Seeing the apps at all (Android 11 and later)
 
@@ -92,7 +97,7 @@ could not start it.
 
 The manifest therefore carries a `<queries>` block that declares the launcher signature
 (`MAIN` + `LAUNCHER`), which makes every app with a launcher icon visible — exactly the set the cards
-and the *Choose the app…* list are built from — plus the three package names outright. It is the
+and the *Choose the app…* list are built from — plus the four package names outright. It is the
 purpose-built alternative to `QUERY_ALL_PACKAGES`, which asks for far more than this needs.
 
 ## Time on each app
@@ -114,9 +119,20 @@ version that added the usage log clears those old totals once, on first run, bec
 separated from time that was never spent.
 
 A card only grows that second line once it has time to show, so a fresh hub is just icons and
-names; the header does the same, and appears only when a card still needs an app or there is time to
+names; the header does the same, and appears only when a card is still empty or there is time to
 report. Press and hold a card for **Reset this card's time**, or use the gear for **Reset all
 tracked time**.
+
+## Support
+
+**♥ Support My Hub**, in the gear menu, offers five amounts — $2, $5, $10, $25 and $50. They are the
+same five Stripe Payment Links SideCut's Donate tab opens: a fixed amount each, paid on a card page
+Stripe hosts, in the browser.
+
+Nothing unlocks, because there is nothing to unlock — the hub is the same app whether a tip is paid
+or not. That is also why there is no receipt to check, no account, and no key of any kind in the
+APK: a Payment Link is a public URL. With no browser installed the app says so and nothing else
+happens.
 
 ## Building
 
@@ -131,8 +147,21 @@ The build is pinned to Gradle 8.9 and Android Gradle Plugin 8.5.2. The repositor
 Gradle wrapper binary, so CI installs Gradle 8.9 itself — run `gradle wrapper` once if you would
 rather use `./gradlew` locally. Android Studio can also just open the folder.
 
-To build a release APK you will need your own keystore; the release build type is there but
-unsigned.
+The release build signs itself from the environment, and is left **unsigned** when that environment
+is absent, so a plain `assembleDebug` on a machine with no key still works. To sign one:
+
+```bash
+export SIGNING_STORE_FILE=/path/to/myhub.p12   # a PKCS12, made with openssl or keytool
+export SIGNING_STORE_PASSWORD='…'              # store and key share it
+export SIGNING_KEY_ALIAS=myhub
+gradle assembleRelease
+# APK: app/build/outputs/apk/release/app-release.apk
+```
+
+CI does the same thing from two repository secrets — `KEYSTORE_BASE64` and `KEYSTORE_PASSWORD` — and
+writes the keystore to the runner's temp folder for the length of the job, so no key material is in
+this repository. Both workflows then **fail** if `app-release.apk` is missing: Android Gradle Plugin
+does not fail a release build without a key, it quietly writes `app-release-unsigned.apk` instead.
 
 The arithmetic that turns usage-log lines into a card's time lives in `UsageSum.kt` with no Android
 dependency, so it has its own check — the overnight, detour and launch-line cases included:
@@ -147,13 +176,14 @@ sh dev/check-usage-sum.sh
 ```
 app/src/main/java/com/myhub/app/
     Apps.kt          the apps, how each is found, the remembered choice, and the time kept
+    Support.kt       the tip jar: five Stripe Payment Links, and the browser hand-off
     UsageSum.kt      the usage-log arithmetic, kept Android-free so dev/ can check it
     MainActivity.kt  the hub screen, its cards, the picker, and the clock
  dev/               the time arithmetic's own check
 app/src/main/res/    colours, theme, settings gear, launcher icon
-.github/workflows/   builds the APK on every push
+.github/workflows/   build.yml makes the APKs, release.yml signs one and publishes it
 ```
 
 ## Version
 
-`1.4.0` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 34 (Android 14).
+`1.5.0` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 34 (Android 14).
