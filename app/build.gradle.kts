@@ -19,8 +19,8 @@ android {
         applicationId = "com.myhub.app"
         minSdk = 21
         targetSdk = 34
-        versionCode = 8
-        versionName = "1.6.0"
+        versionCode = 9
+        versionName = "1.7.0"
     }
 
     signingConfigs {
@@ -49,6 +49,12 @@ android {
         }
     }
 
+    buildFeatures {
+        // BuildConfig.VERSION_NAME is what the updater compares a release tag against, so the
+        // build has to carry the constant.
+        buildConfig = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -65,5 +71,6 @@ android {
     }
 }
 
-// No dependencies on purpose. The hub is built from classes the Android framework already has,
-// so there is nothing to download, nothing to conflict, and nothing to keep up to date.
+// No dependencies on purpose. The hub - updater included - is built from classes the Android
+// framework already has, so there is nothing to download, nothing to conflict, and nothing to keep
+// up to date.
