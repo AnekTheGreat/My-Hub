@@ -143,17 +143,34 @@ jobs:
           PY
 
       # Play's two hard checks, run before anything is published: an upload must target API 36 or
-      # newer, and it must not ask to install other packages. Both are one grep away, and neither
-      # is worth discovering in a review queue days later.
+      # newer, and it must not ask to install other packages. The permission is read out of the
+      # BUILT APK, not the source manifest: the manifest's comment explains that the permission is
+      # gone, and a grep of the source would find that sentence and fail a release that is fine.
       - name: Check the build is Play-ready
         run: |
           grep -q 'compileSdk = 36' app/build.gradle.kts \
             || { echo "::error::compileSdk is not 36 - AGP 8.10 is needed for API 36"; exit 1; }
           grep -q 'targetSdk = 36' app/build.gradle.kts \
             || { echo "::error::targetSdk is not 36 - Play refuses a bundle that targets less"; exit 1; }
-          if grep -q 'REQUEST_INSTALL_PACKAGES' app/src/main/AndroidManifest.xml; then
-            echo "::error::the manifest asks to install packages, which Play reads as a self-updater"
-            exit 1
+          APK=app/build/outputs/apk/release/app-release.apk
+          AAPT="$(command -v aapt2 || true)"
+          if [ -z "$AAPT" ]; then
+            AAPT="$(ls -1 "$ANDROID_HOME"/build-tools/*/aapt2 2>/dev/null | tail -1 || true)"
+          fi
+          if [ -n "$AAPT" ]; then
+            "$AAPT" dump permissions "$APK" > /tmp/perms.txt
+            if grep -q 'REQUEST_INSTALL_PACKAGES' /tmp/perms.txt; then
+              echo "::error::the built APK asks to install packages, which Play reads as a self-updater"
+              exit 1
+            fi
+            echo "permissions in the built APK:"
+            cat /tmp/perms.txt
+          else
+            echo "::warning::no aapt2 on this runner; reading the source manifest instead"
+            if grep -qE '<uses-permission[^>]*REQUEST_INSTALL_PACKAGES' app/src/main/AndroidManifest.xml; then
+              echo "::error::the manifest asks to install packages"
+              exit 1
+            fi
           fi
           echo "Play-ready: API 36, no REQUEST_INSTALL_PACKAGES, signed AAB above"
 
