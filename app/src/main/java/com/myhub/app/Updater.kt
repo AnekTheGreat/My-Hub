@@ -24,8 +24,8 @@ data class Update(
 )
 
 /**
- * OTA updates: read what the newest release is, compare it with the page this build is drawing,
- * and - only when that release is newer - offer it.
+ * OTA updates: read what the newest release is, compare it with the version this build carries, and
+ * - only when that release is newer - offer it.
  *
  * This is the hub's ONLY use of the network, and it is why the app asks for INTERNET. Nothing is
  * uploaded; there is no account and no identifier, and no traffic at all unless there is a
@@ -33,10 +33,10 @@ data class Update(
  *
  * The answer comes from a small manifest published WITH the release, which is the same shape
  * SideCut, MeasureT and FamTM use: updates.json holding the version, the file, its size, the notes
- * for it and - since the screen became a page - the page and its digest. One fixed URL, no API, no
- * tag parsing, and the changelog travels with the build instead of being reconstructed on the
- * phone. The GitHub API and the releases feed are kept as fallbacks for a release that predates
- * the manifest.
+ * for it and - since the screen became a page - the page, its size and its digest. One fixed URL,
+ * no API, no tag parsing, and the changelog travels with the build instead of being reconstructed
+ * on the phone. The GitHub API and the releases feed are kept as fallbacks for a release that
+ * predates the manifest.
  *
  * WHAT THE HUB DOES NOT DO: install anything. Downloading the APK and handing it to Android's
  * installer needed REQUEST_INSTALL_PACKAGES, and a sideloaded app that fetches code over the
@@ -154,7 +154,7 @@ object Updater {
                 Log.w(TAG, "the manifest names no APK")
                 null
             }
-            !newer(v, BuildConfig.VERSION_NAME) && !newer(v, PageStore.running(appContext())) -> null
+            !newer(v, BuildConfig.VERSION_NAME) -> null
             else -> {
                 val notes = j.optJSONArray("notes")?.let { a ->
                     (0 until a.length()).joinToString("\n") { a.optString(it) }
@@ -264,19 +264,6 @@ object Updater {
         }
         return false
     }
-
-    /**
-     * The application context, so the manifest can be measured against the page on the phone as
-     * well as against the APK that carries it. Set once by MainActivity, which is the only thing
-     * that has one.
-     */
-    private var context: Context? = null
-
-    fun attach(ctx: Context) {
-        if (context == null) context = ctx.applicationContext
-    }
-
-    private fun appContext(): Context = context ?: throw IllegalStateException("Updater not attached")
 
     /**
      * True when this copy was installed by the Play Store.
