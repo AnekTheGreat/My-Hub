@@ -23,10 +23,10 @@ android {
         targetSdk = 36
         // One source of truth: the name is written once and the code is computed from it, so the
         // APK on a phone, the APK CI builds and the release the updater reads can never disagree,
-        // and each release installs over the one before it - 1.10.0 -> 11000 over 1.9.0 -> 10900.
+        // and each release installs over the one before it - 1.10.1 -> 11001 over 1.10.0 -> 11000.
         // The screen ships separately, as a page, and release.yml refuses a release whose page
         // names any other version than this one.
-        versionName = "1.10.0"
+        versionName = "1.10.1"
         versionCode = versionName!!.split(".").let { p ->
             p[0].toInt() * 10_000 + p[1].toInt() * 100 + p[2].toInt()
         }

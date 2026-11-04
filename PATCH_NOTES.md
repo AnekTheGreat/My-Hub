@@ -4,6 +4,15 @@ What changed in each release, newest first. Everything here ships as a signed AP
 the same build as an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag.
 
+## 1.10.1 - the other apps open their Play listings
+
+### Changed
+- **The rows behind the gear open Play, not GitHub.** Each one used to open the app's repository,
+  which is where the APKs are kept for sideloading rather than where an app is installed from. The
+  four rows now open their Play listings, addressed by the package name each app is published
+  under, and the sheet says so. FamTM is published (`com.familytree.app`); UJournal, SideCut and
+  Compass EDC answer with Play's own not-found page until they are published.
+
 ## 1.10.0 — the gear points at the other apps
 
 ### Added

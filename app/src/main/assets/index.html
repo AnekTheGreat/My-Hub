@@ -88,7 +88,7 @@ footer{flex:0 0 auto;text-align:center;color:var(--chevron);font-size:11px;paddi
 <script>
 /* The screen My Hub draws. The version here is compared with the release's before a page update is
    applied, and release.yml refuses to publish unless it matches the version in build.gradle.kts. */
-var HUB_PAGE = "1.10.0";
+var HUB_PAGE = "1.10.1";
 
 var native = window.Hub || null;
 var S = null;
@@ -352,16 +352,18 @@ function settings(){
 }
 
 /* The other apps in this collection. A hub already knows how to send someone to a page: the tip
-   rows use the same call, so the addresses can live here and a tap opens the browser. */
+   rows use the same call, so the addresses can live here and a tap opens the browser. These are
+   Play listings rather than repositories, because a listing is where an app is installed from and
+   updated from; the package name in each one is what the app was published under. */
 var OTHERS = [
   { label: 'UJournal', sub: 'A journal that opens on a shelf of books',
-    url: 'https://github.com/AnekTheGreat/Journal/releases/latest' },
+    url: 'https://play.google.com/store/apps/details?id=app.ujournal' },
   { label: 'FamTM', sub: 'The family tree in your pocket',
-    url: 'https://github.com/AnekTheGreat/FamTM/releases/latest' },
+    url: 'https://play.google.com/store/apps/details?id=com.familytree.app' },
   { label: 'SideCut', sub: 'A music player with its own equaliser',
-    url: 'https://anekthegreat.github.io/SideCut/' },
+    url: 'https://play.google.com/store/apps/details?id=com.SideCut.myapp' },
   { label: 'Compass EDC', sub: 'Compass, elevation, GPS and a level',
-    url: 'https://github.com/AnekTheGreat/Compass-EDC' }
+    url: 'https://play.google.com/store/apps/details?id=com.CompassEDC.myapp' }
 ];
 
 function others(){
@@ -374,8 +376,10 @@ function others(){
   });
   sheet('Other apps', {
     rows: rows,
-    note: 'Four more, made the same way. Each opens its page in the browser; nothing is installed \n' +
-      'from here and nothing is downloaded.',
+    note: 'Four more, made the same way. Each opens its Play listing, so what you install is the\n' +
+      'same build Play keeps up to date - nothing here downloads or installs a package.\n\n' +
+      'A listing that is not up yet answers with Play\'s own not-found page; FamTM is published,\n' +
+      'and the other four follow as they are published.',
     buttons: [{ label: 'Close', run: closeSheet }]
   });
 }
