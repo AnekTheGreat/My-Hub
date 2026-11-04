@@ -4,6 +4,32 @@ What changed in each release, newest first. Everything here ships as a signed AP
 the same build as an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag.
 
+## 1.8.5 — target Android 16, and a Play copy updates through Play
+
+### Changed
+- **The hub now targets Android 16 (API 36).** Google Play has refused an upload that targets less
+  since 31 August 2026, so `compileSdk` and `targetSdk` are both 36. That needs a newer Android
+  Gradle Plugin — 8.10.1, with Gradle 8.11.1, both pinned in CI — and Kotlin 2.0.21. None of the
+  hub's own code changed to make room for it.
+- **A copy installed from Google Play takes its updates from Play.** `Updater.fromPlay()` asks the
+  phone which app installed this copy; when the answer is the Play Store, the hub skips the GitHub
+  check altogether and the gear's **Check for updates** opens the Play listing. A Play install must
+  not be pointed at an APK: Play's policy forbids it, and a sideloaded APK carries a different
+  signing key anyway, so the "update" could not install over the store build.
+- **A sideloaded copy keeps the GitHub check unchanged** — the same `updates.json`, the same notes,
+  the same release page in the browser.
+
+### Added
+- **A Play-ready step in `release.yml`.** A release now stops before publishing unless `targetSdk`
+  is 36, `compileSdk` is 36, and the manifest asks for no `REQUEST_INSTALL_PACKAGES`.
+- **`PLAY_STORE.md`** — what to upload, the listing copy, the graphics still to supply by hand, and
+  the store declarations the hub needs.
+
+### Fixed
+- **The header keeps its distance from the status bar on Android 15 and 16.** Those versions force
+  edge-to-edge on an app that targets 35 or higher; the root view already takes the system insets,
+  so the screen sits where it did before.
+
 ## 1.8.4 — the update no longer installs itself, so Play Protect stops calling it harmful
 
 ### Fixed
