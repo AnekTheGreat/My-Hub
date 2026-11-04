@@ -4,6 +4,18 @@ What changed in each release, newest first. Everything here ships as a signed AP
 the same build as an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag.
 
+## 1.10.0 — the gear points at the other apps
+
+### Added
+- **Check out the other apps.** A row behind the gear lists UJournal, FamTM, SideCut and Compass EDC,
+  one line each, and a tap opens that app's page in the browser. The hub already sends someone to a
+  page for a tip, so this is one more row over the same call and needed no native code at all.
+
+### Fixed
+- **A sheet row's second line wraps instead of being cut off.** The row subtitle was styled for
+  package names — one line, monospace, ellipsis — which is wrong for a sentence describing an app.
+  It now wraps and uses the same type as the rest of the sheet.
+
 ## 1.9.0 — the screen is a page now, so it updates without an installer
 
 ### Changed
