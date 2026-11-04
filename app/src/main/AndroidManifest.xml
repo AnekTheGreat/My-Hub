@@ -8,18 +8,25 @@
       in front. Without the switch nothing is recorded and no number is invented; the card offers
       the switch instead. Nothing is read, sent, or stored anywhere except the name of an app you
       picked by hand and the time each card's app was actually on screen.
-
-      INTERNET is here for one reason: Updater asks GitHub for the newest release of this repository
-      so a new version can install itself. Nothing else in the hub opens a connection, and the
-      request carries nothing about the phone or the person using it.
-
-      REQUEST_INSTALL_PACKAGES is what lets that downloaded APK reach Android's installer. The
-      owner still has to allow "install unknown apps" for My Hub once, and Android shows its own
-      confirmation for every install.
     -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
+
+    <!--
+      INTERNET is here for one reason: Updater asks GitHub for the newest release of this repository
+      so the hub can say when a newer one exists. Nothing else in the hub opens a connection, and
+      the request carries nothing about the phone or the person using it.
+
+      THERE IS DELIBERATELY NO REQUEST_INSTALL_PACKAGES HERE. Up to 1.8.3 the hub downloaded the
+      release APK itself and handed it to Android's installer, which needs that permission - and to
+      Play Protect a sideloaded app that pulls code over the network and then asks to install it is
+      the shape of a dropper, whatever it means to do. It read the hub as harmful for exactly that.
+
+      The check is unchanged; what changed is who installs the file. Tapping an offered update now
+      opens the release page in the browser: the APK downloads there and the phone's own installer
+      takes it from outside the hub. The hub never touches a package, so there is nothing to hand
+      over and no permission to ask for.
+    -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!--
       WITHOUT THIS BLOCK THE HUB CANNOT SEE ANYTHING ON ANDROID 11 OR LATER.
@@ -71,16 +78,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!--
-          The downloaded update, served to the installer. Not exported, so nothing else on the
-          phone can read it; the read permission is granted per intent by Updater.install().
-        -->
-        <provider
-            android:name=".ApkProvider"
-            android:authorities="${applicationId}.updates"
-            android:exported="false"
-            android:grantUriPermissions="true" />
     </application>
 
 </manifest>

@@ -4,21 +4,19 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
-/** One published release: the version, the APK to fetch, and what changed. */
+/** One published release: the version, where it can be read about and fetched, and what changed. */
 data class Update(val version: String, val url: String, val notes: String)
 
 /**
  * OTA updates: read what the newest release is, compare it with the version this build carries,
- * and - only when that release is newer - download the APK and hand it to Android's installer.
+ * and - only when that release is newer - take the owner to it.
  *
  * This is the hub's ONLY use of the network, and it is why the app asks for INTERNET. Nothing is
  * uploaded; there is no account and no identifier, and no traffic at all unless there is a
@@ -30,10 +28,11 @@ data class Update(val version: String, val url: String, val notes: String)
  * instead of being reconstructed on the phone. The GitHub API and the releases feed are kept as
  * fallbacks for a release that predates the manifest.
  *
- * The file is downloaded into the hub's own cache and served to the installer by [ApkProvider],
- * because a file:// URI cannot be handed to another app since Android 7. That provider is written
- * here rather than pulled from a library: the hub carries no dependencies, and this is the one
- * method it needs.
+ * WHAT THE HUB DOES NOT DO ANY MORE: download the APK and install it. That needed
+ * REQUEST_INSTALL_PACKAGES, and a sideloaded app that fetches code over the network and then asks
+ * Android to install it is the shape Play Protect blocks - it read the hub as harmful because of
+ * it. [browse] hands the release page to the browser instead, the APK downloads there, and the
+ * phone's own installer takes it from outside the app. Same check, same notes, no installer.
  */
 object Updater {
 
@@ -99,7 +98,7 @@ object Updater {
     }
 
     /**
-     * {"version":"1.8.1","apk":"MyHub-1.8.1.apk","size":646318,"notes":["..."],"date":"..."}
+     * {"version":"1.8.4","apk":"MyHub-1.8.4.apk","size":647231,"notes":["..."],"date":""}
      * - the same keys SideCut's ota/updates.json and MeasureT's updates.json carry.
      */
     private fun fromManifest(text: String): Update? = try {
@@ -222,69 +221,27 @@ object Updater {
     }
 
     /**
-     * Android only installs a package from an app the owner has allowed to install, so the switch is
-     * opened for them instead of the install failing with no explanation. True when it is already on.
+     * Where the update is actually taken from: the release page, opened in the browser.
+     *
+     * The hub used to fetch the APK into its own cache and hand it to Android's installer through a
+     * one-file ContentProvider. That is what made Play Protect read the app as harmful - downloading
+     * executable code and asking to install it is the dropper signature - and it is also the only
+     * reason the app ever asked for REQUEST_INSTALL_PACKAGES. Now the browser downloads the file and
+     * the phone's own installer, a different app with its own consent screen, installs it.
      */
-    fun ensurePermission(ctx: Context): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return true
-        if (ctx.packageManager.canRequestPackageInstalls()) return true
+    fun browse(ctx: Context, update: Update) {
         try {
             ctx.startActivity(
-                Intent(
-                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                    Uri.parse("package:${ctx.packageName}")
-                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                Intent(Intent.ACTION_VIEW, Uri.parse(page(update)))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
-            Toast.makeText(
-                ctx, "Allow installs for My Hub, then tap Check for updates again", Toast.LENGTH_LONG
-            ).show()
         } catch (e: Exception) {
-            Toast.makeText(ctx, "Installs from this app are switched off in Settings", Toast.LENGTH_LONG)
+            Log.w(TAG, "no browser for ${update.url}: ${e.javaClass.simpleName}")
+            Toast.makeText(ctx, "No browser on this phone to open the release", Toast.LENGTH_LONG)
                 .show()
         }
-        return false
     }
 
-    /** Downloads [update] into the cache, replacing any earlier file. [done] runs off the UI thread. */
-    fun download(ctx: Context, update: Update, done: (Boolean) -> Unit) {
-        Thread {
-            val f = ApkProvider.fileFor(ctx)
-            var ok = false
-            try {
-                File(ctx.cacheDir, "updates").mkdirs()
-                File(ctx.cacheDir, "updates").listFiles()?.forEach { it.delete() }
-                val c = open(update.url)
-                val code = c.responseCode
-                if (code != 200) {
-                    Log.w(TAG, "download answered $code")
-                } else {
-                    c.inputStream.use { input -> f.outputStream().use { output -> input.copyTo(output) } }
-                    // Anything GitHub sends can arrive with a successful-looking body, and an error
-                    // page saved under this name reaches Android as "there was a problem parsing
-                    // the package". An APK is a zip: it starts 50 4B and it is not tiny.
-                    ok = f.length() > 20_000L &&
-                        f.inputStream().use { it.read() == 0x50 && it.read() == 0x4B }
-                    if (!ok) Log.w(TAG, "${f.length()} bytes arrived that are not an APK")
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "download failed: ${e.javaClass.simpleName}")
-            }
-            // A half file left in the cache is handed to the installer next time and fails there.
-            if (!ok) f.delete()
-            done(ok)
-        }
-    }
-
-    /** Hand the downloaded file to the system installer, which shows its own confirmation. */
-    fun install(ctx: Context) {
-        try {
-            ctx.startActivity(
-                Intent(Intent.ACTION_VIEW)
-                    .setDataAndType(ApkProvider.uriFor(ctx), "application/vnd.android.package-archive")
-                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
-        } catch (e: Exception) {
-            Toast.makeText(ctx, "No installer on this phone", Toast.LENGTH_LONG).show()
-        }
-    }
+    /** The release page itself, which carries the APK and the notes beside it. */
+    private fun page(update: Update) = "https://github.com/$REPO/releases/tag/v${update.version}"
 }
