@@ -64,7 +64,7 @@ The hub ships knowing which app each card is meant to be, and asks your phone fo
 
 | Card | Package it looks for | If that is not installed |
 | --- | --- | --- |
-| FamTM | `com.familytree.app` | looks for an app named FamTM or Family Tree |
+| FamTM | `com.FamTM.app` | looks for an app named FamTM or Family Tree |
 | SideCut | `com.SideCut.myapp` (the release build) | looks for an app named "SideCut Play" or "SideCut" |
 | MeasureT | `com.CompassEDC.myapp` | looks for an app named "MeasureT", "Measure T", "Measure", "Compass EDC" or "CompassEDC" |
 | UJournal | `app.ujournal` | looks for an app named "UJournal" or "Journal" |
@@ -80,6 +80,10 @@ Capacitor config gives the APK is `com.CompassEDC.myapp` — so that is the pack
 for. The name it shipped under before it was renamed, *Compass EDC*, is looked for too, so a phone
 still carrying that install opens from the same card rather than from one that says there is
 nothing there. UJournal installs from the Journal repository as `app.ujournal`.
+
+FamTM installs as `com.FamTM.app`. It was `com.familytree.app` until that turned out to be another
+listing's package name — a name only ever belongs to one app — so the card looks for the new id and
+falls back to the names the phone shows, which is how a build from before the change is still found.
 
 If a card still finds nothing at all, **press and hold it** and choose the app from a list of
 everything installed on the phone. The hub remembers the choice, and *Use the default* on that same
