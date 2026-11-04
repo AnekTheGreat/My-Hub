@@ -8,21 +8,27 @@ declarations Play asks for before it reviews anything.
 
 | | |
 | --- | --- |
-| File | `MyHub-1.8.5.aab` from the [latest release](../../releases/latest) |
+| File | `MyHub-1.9.0.aab` from the [latest release](../../releases/latest) |
 | Application id | `com.myhub.app` |
-| Version name / code | `1.8.5` / `10805` — the code is computed from the name, so it only ever climbs |
+| Version name / code | `1.9.0` / `10900` — the code is computed from the name, so it only ever climbs |
 | Min SDK | 21 (Android 5.0) |
 | Target SDK | 36 — Play has refused an upload below API 36 since 31 August 2026 |
 | Signing | upload key from the `KEYSTORE_BASE64` secret; Play App Signing re-signs what is delivered |
 
-`release.yml` stops a release before publishing unless the bundle is API 36 and the APK it just
-built asks for no `REQUEST_INSTALL_PACKAGES`, so a broken bundle cannot reach the release page.
+`release.yml` stops a release before publishing unless the bundle is API 36, the manifest asks for
+no `REQUEST_INSTALL_PACKAGES`, and the page in `assets/index.html` names the same version as the
+build, so a broken bundle or a page that disagrees with it cannot reach the release page.
+
+**The screen updates outside Play, on purpose.** The UI is `assets/index.html`, and a release that
+only changes it is fetched and swapped in place by the installed app — the same thing SideCut,
+MeasureT and FamTM do. Play ships the shell (the bridge and the update machinery); the page is web
+content, not executable code, and it arrives with the release's own notes.
 
 Turn on **Play App Signing**. It is the default for a new app, and it is what makes a lost keystore
 recoverable: Google holds the app signing key, this repository holds only the upload key.
 
 **A sideloaded copy cannot be upgraded through Play.** Play signs the delivered APK with its own
-key, so a phone carrying `MyHub-1.8.5.apk` from the releases page has to uninstall it once before
+key, so a phone carrying `MyHub-1.9.0.apk` from the releases page has to uninstall it once before
 installing from the store. Card bindings and tracked time go with that uninstall.
 
 ## 2. Store listing
@@ -60,26 +66,25 @@ points at and how long it was open all stay on the device. The only connection t
 hub makes is to its own public GitHub releases, to see whether a newer version exists,
 and that request carries nothing about the person using it.
 
-Updates come from Google Play when the hub is installed here. Installed by hand
-instead, it opens the release page in your browser and your phone's own installer
-takes the file from there — the hub never downloads or installs a package itself.
+The screen updates itself over the air: a new version of the hub's own page is
+fetched and swapped in place, with nothing installed and no installer prompt.
+The app itself comes from Google Play when the hub is installed here. Installed
+by hand instead, a new build opens its release page in your browser and your
+phone's own installer takes the file from there — the hub never installs a
+package itself.
 ```
 
 ## 3. Graphics
 
 | Asset | Size | Where |
 | --- | --- | --- |
-| App icon | 512 × 512 PNG, 32-bit, no alpha | `play/icon-512.png` |
-| Feature graphic | 1024 × 500 PNG/JPG | `play/feature-graphic.png` |
+| App icon | 512 × 512 PNG, 32-bit, no alpha | [play/icon-512.png](play/icon-512.png) |
+| Feature graphic | 1024 × 500 PNG/JPG | [play/feature-graphic.png](play/feature-graphic.png) |
 | Phone screenshots | 2–8, at least 1080 px on the long edge | **still to take**: the hub screen, a filled slot, the update dialog, the gear menu |
 
-Both graphics are rendered rather than hand-drawn: `python3 dev/play-art.py` writes the two files
-above from the launcher icon's own geometry and colours, in the two sizes Play asks for. Pillow is
-the only dependency. Upload those two files.
-
-The feature graphic is the icon on the app's own navy, with the app's name and one line of copy;
-if the listing copy changes, change the line in the script and run it again rather than editing the
-PNG.
+The icon is the launcher icon redrawn at store size from the same 108-unit vector the app ships;
+the feature graphic is that icon on the app's own navy. Both were rendered from the app's geometry,
+not created for the store.
 
 ## 4. App content
 

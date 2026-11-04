@@ -37,21 +37,24 @@ There is no APK in this repository. GitHub builds one for you:
 [release.yml](../../actions/workflows/release.yml) makes it on every `v*` tag, or when it is
 dispatched by hand with a version. The same release carries `MyHub-<version>.aab` for Play Console.
 2. After that, the hub says when there is a newer release: it checks when it opens, and when one is
-newer it shows what changed and opens the release page in your browser — the APK downloads there
-and your phone's own installer takes it, from outside the hub. Nothing is fetched unless a newer
-release exists. **Check for updates** in the gear asks on demand.
+newer it shows what changed. **Update now** takes the release's new *screen* and swaps it in place —
+nothing is installed, and no installer appears, because the screen is a page and not a package. See
+[Updates](#updates). Only a release that changed the native side asks for the APK, which opens its
+release page in your browser and installs from there. **Check for updates** in the gear asks on
+demand.
 
-**Installed from Google Play?** Then Play installs the updates and none of this applies: the hub
-makes no request and never points a store install at an APK — **Check for updates** opens the Play
-listing. Put it on Play with [PLAY_STORE.md](PLAY_STORE.md).
-
+**Installed from Google Play?** Then Play installs the builds and the screen still updates itself
+from here, exactly as it does for a sideloaded copy — the hub never points a store install at an
+APK, and **Check for updates** opens the Play listing when a new build is waiting. Put it on Play
+with [PLAY_STORE.md](PLAY_STORE.md).
 3. Prefer a build from a branch? Open the [**Actions**](../../actions/workflows/build.yml) tab, pick
 the newest **Build APK + AAB** run (every push to `main` starts one), and download the
 **MyHub-apk-aab** artifact — it carries `app-debug.apk`, the signed `app-release.apk`, and both
 bundles (`app-debug.aab`, `app-release.aab`).
 
-Install from Releases rather than an artifact if you want updates to work: the updater compares the
-version it is running with the newest release, and a debug artifact carries a lower version.
+Install from Releases rather than an artifact if you want the release checks to line up: the updater
+compares the version it is running with the newest release, and a debug artifact carries a lower
+version.
 
 Or build it yourself — see [Building](#building).
 
@@ -91,18 +94,27 @@ Hub** and a short explanation of the whole thing.
 
 ## Updates
 
-My Hub updates itself the same way the apps it launches do:
+**The screen is a web page, so it updates over the air** — the way SideCut, MeasureT and FamTM
+update theirs, and without an installer ever appearing:
 
-- On launch it asks GitHub for the newest release of this repository, compares that tag with the
-  version it is running, and **only when the release is newer** shows what changed.
-- **Open the release** hands the page to your browser. The hub downloads nothing and installs
-  nothing: the browser fetches the APK and your phone's installer, a different app with its own
-  confirmation, takes it from there. That is deliberate — a sideloaded app that fetches code and
-  then asks to install it is what Play Protect reads as a dropper, and 1.8.4 removed exactly that.
-- **From Google Play**, no check is made at all. Play installs that copy's updates, so the gear's
-  **Check for updates** opens the Play listing instead of a release page.
+- On launch the hub reads `updates.json` from the newest release and compares it with the page it is
+  drawing. Only when the release is newer does anything appear on screen.
+- **Update now** fetches that release's `index.html`, checks it carries the `myhub-page` marker and
+  the version the release promised, writes it into the app's own storage and loads it in place. No
+  APK is downloaded, no installer prompt opens, and Play Protect sees nothing because nothing is
+  being installed.
+- **The APK is the shell.** It changes only when the native side does — the bridge that lists apps,
+  launches one, reads usage time, and holds the tip links. When that happens the update sheet says
+  so and offers the release page; only a copy that was not installed by Play is offered it, because
+  a Play copy takes its build from Play.
+- **From Google Play**, the build comes from Play and the screen still comes from here: the page
+  update is offered exactly as it is to a sideloaded copy.
 - **Later** changes nothing. So do being offline, being current, and any failed request: a silent
   check never puts anything on screen unless there is an update to offer.
+- **A bad page cannot brick the screen.** A download without the marker or without the promised
+  version is refused; a page that loads but never reports that it drew is thrown away and the
+  bundled copy is loaded; an install deletes any page stored before it. The worst an update can do
+  is put back the screen the APK shipped with.
 - Nothing else about the hub touches the network. There is no account, no identifier and nothing
   uploaded; the one request is for a public release.
 
@@ -113,14 +125,16 @@ My Hub updates itself the same way the apps it launches do:
   but the API 30+ way of saying which apps it is allowed to *see* — and it asks for **Usage access**,
   a one-off switch in Settings rather than a prompt, so it can read how long an app was in front.
   With the switch off, no time is recorded and nothing is guessed — see below.
-- **One connection, and only for updates.** `INTERNET` exists so the hub can ask whether a newer
-  release exists — see [Updates](#updates). It sends nothing about you anywhere, and the tip jar does
-  not change that either: it hands a Stripe payment link to the browser and the hub itself never
-  opens a connection for it.
-- **No libraries.** No AndroidX, no Compose, no third-party code — the updater is written on the
-  framework, with a thread and `HttpURLConnection` for the check. The only things the hub keeps are
-  the name of an app you picked by hand (if you ever picked one) and how long each card's app stayed
-  open.
+- **One connection, and only for updates.** `INTERNET` is the only permission in the manifest, and
+  it exists so the hub can ask for the newest release and, when there is one, fetch its page — see
+  [Updates](#updates). It sends nothing about you anywhere, and the tip jar does not change that
+  either: it hands a Stripe payment link to the browser and the hub itself never opens a connection
+  for it. There is deliberately **no `REQUEST_INSTALL_PACKAGES`**: the hub installs nothing.
+- **No libraries.** No AndroidX, no Compose, no third-party code — the screen is a page drawn by the
+  WebView the framework already has, and the bridge, the updater and the JSON are all framework
+  classes. The only things the hub keeps are the name of an app you picked by hand (if you ever
+  picked one), how long each card's app stayed open, and a newer copy of the page once it has
+  fetched one.
 
 ## Seeing the apps at all (Android 11 and later)
 
@@ -172,17 +186,16 @@ happens.
 
 ## Building
 
-Needs JDK 17 and the Android SDK with platform 36.
+Needs JDK 17 and the Android SDK (platform 36, build-tools 36.0.0).
 
 ```bash
 gradle assembleDebug     # app/build/outputs/apk/debug/app-debug.apk
-gradle assembleRelease   # signed only when the SIGNING_* variables below are set
 ```
 
-The build is pinned to Gradle 8.11.1 and Android Gradle Plugin 8.10.1 — the oldest pair that can
-compile against API 36, which is what Google Play requires of an upload. The repository carries no
-Gradle wrapper binary, so CI installs Gradle 8.11.1 itself — run `gradle wrapper` once if you would
-rather use `./gradlew` locally. Android Studio can also just open the folder.
+The build is pinned to Gradle 8.11.1 and Android Gradle Plugin 8.10.1, the oldest plugin that can
+compile against API 36. The repository carries no Gradle wrapper binary, so CI installs Gradle
+8.11.1 itself — run `gradle wrapper` once if you would rather use `./gradlew` locally. Android
+Studio can also just open the folder.
 
 The release build signs itself from the environment, and is left **unsigned** when that environment
 is absent, so a plain `assembleDebug` on a machine with no key still works. To sign one:
@@ -207,10 +220,8 @@ CI does the same thing from two repository secrets — `KEYSTORE_BASE64` and `KE
 writes the keystore to the runner's temp folder for the length of the job, so no key material is in
 this repository. Both workflows then **fail** if `app-release.apk` is missing (Android Gradle
 Plugin does not fail a release build without a key, it quietly writes `app-release-unsigned.apk`
-instead) and if `app-release.aab` or `app-debug.aab` is missing.
-
-`release.yml` also refuses to publish a build that Play would reject: it stops unless `targetSdk` and
-`compileSdk` are 36 and the manifest asks for no `REQUEST_INSTALL_PACKAGES`.
+instead) and if `app-release.aab` or `app-debug.aab` is missing. They also fail if the page is
+missing from the APK, or if it names a version the build does not.
 
 The arithmetic that turns usage-log lines into a card's time lives in `UsageSum.kt` with no Android
 dependency, so it has its own check — the overnight, detour and launch-line cases included:
@@ -226,9 +237,18 @@ sh dev/check-usage-sum.sh
 app/src/main/java/com/myhub/app/
     Apps.kt          the apps, how each is found, the remembered choice, and the time kept
     Support.kt       the tip jar: five Stripe Payment Links, and the browser hand-off
-    Updater.kt       the OTA check, and the release page (or Play listing) it opens
+    Updater.kt       the release check, the page download, and the fallbacks behind it
+    PageStore.kt     the bundled page, the over-the-air copy, and the rules that make it safe
+    Bridge.kt        what the page may ask the phone: apps, launching, usage, tips, updates
     UsageSum.kt      the usage-log arithmetic, kept Android-free so dev/ can check it
+    MainActivity.kt  the shell: one WebView, the bars, and the watch for a page that drew
+app/src/main/assets/
+    index.html       the screen itself - cards, sheets, gear - and the file an update replaces
+dev/                 the time arithmetic's own check
+app/src/main/res/    colours, theme, settings gear, launcher icon
+.github/workflows/   build.yml makes the APKs and AABs, release.yml signs, checks and publishes them
 ```
 
-`PLAY_STORE.md` is the Play Console side: what to upload, the listing copy, the graphics, and the
-declarations the hub needs.
+## Version
+
+`1.9.0` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 36 (Android 16).
