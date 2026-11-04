@@ -198,15 +198,9 @@ compile against API 36. The repository carries no Gradle wrapper binary, so CI i
 Studio can also just open the folder.
 
 The release build signs itself from the environment, and is left **unsigned** when that environment
-is absent, so a plain `assembleDebug` on a machine with no key still works. To sign one:
-
-```bash
-export SIGNING_STORE_FILE=/path/to/myhub.p12   # a PKCS12, made with openssl or keytool
-export SIGNING_STORE_PASSWORD='…'              # store and key share it
-export SIGNING_KEY_ALIAS=myhub
-gradle assembleRelease
-# APK: app/build/outputs/apk/release/app-release.apk
-```
+is absent, so a plain `assembleDebug` on a machine with no key still works. The key itself is held in
+the repository's Actions secrets and rebuilt on the runner for the length of the job, so no key
+material is in this repository.
 
 `assemble*` makes an APK, `bundle*` makes an AAB — the bundle is what Play Console takes, the APK
 is what a phone installs by hand:
@@ -216,12 +210,10 @@ gradle assembleDebug assembleRelease bundleDebug bundleRelease
 # app/build/outputs/{apk,bundle}/{debug,release}/
 ```
 
-CI does the same thing from two repository secrets — `KEYSTORE_BASE64` and `KEYSTORE_PASSWORD` — and
-writes the keystore to the runner's temp folder for the length of the job, so no key material is in
-this repository. Both workflows then **fail** if `app-release.apk` is missing (Android Gradle
-Plugin does not fail a release build without a key, it quietly writes `app-release-unsigned.apk`
-instead) and if `app-release.aab` or `app-debug.aab` is missing. They also fail if the page is
-missing from the APK, or if it names a version the build does not.
+Both workflows then **fail** if `app-release.apk` is missing (Android Gradle Plugin does not fail a
+release build without a key, it quietly writes `app-release-unsigned.apk` instead) and if
+`app-release.aab` or `app-debug.aab` is missing. They also fail if the page is missing from the
+APK, or if it names a version the build does not.
 
 The arithmetic that turns usage-log lines into a card's time lives in `UsageSum.kt` with no Android
 dependency, so it has its own check — the overnight, detour and launch-line cases included:
@@ -252,3 +244,8 @@ app/src/main/res/    colours, theme, settings gear, launcher icon
 ## Version
 
 `1.9.0` — `com.myhub.app`, minSdk 21 (Android 5), targetSdk 36 (Android 16).
+
+## Licence
+
+My Hub is proprietary. Copyright (c) 2026 AnekTheGreat, all rights reserved — no part of it may be
+copied, reused, modified or redistributed without written permission. See [LICENSE](LICENSE).
