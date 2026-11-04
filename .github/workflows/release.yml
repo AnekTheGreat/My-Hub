@@ -175,13 +175,20 @@ jobs:
             || { echo "::error::compileSdk is not 36 - AGP 8.10 is needed for API 36"; exit 1; }
           grep -q 'targetSdk = 36' app/build.gradle.kts \
             || { echo "::error::targetSdk is not 36 - Play refuses a bundle that targets less"; exit 1; }
-          if grep -q 'REQUEST_INSTALL_PACKAGES' app/src/main/AndroidManifest.xml; then
-            echo "::error::the manifest asks to install packages, which Play reads as a self-updater"
-            exit 1
-          fi
+          # Real declarations only, never prose: the manifest's own comment names the permission to
+          # explain why it is gone, and matching a comment failed the v1.10.0 release after the APK
+          # had already been built.
+          python3 - <<'CHECK'
+          import re, sys
+          x = open('app/src/main/AndroidManifest.xml', encoding='utf-8').read()
+          x = re.sub(r'<!--.*?-->', '', x, flags=re.S)
+          if re.search(r'<uses-permission[^>]*REQUEST_INSTALL_PACKAGES', x, re.S):
+              sys.exit('::error::the manifest asks to install packages, which Play reads as a self-updater')
+          print('manifest declares no install-packages permission')
+          CHECK
           [ -s app/src/main/assets/index.html ] \
             || { echo "::error::the screen page is missing from the build"; exit 1; }
-          echo "Play-ready: API 36, no REQUEST_INSTALL_PACKAGES, signed AAB and an OTA page above"
+          echo "Play-ready: API 36, no install-packages permission, signed AAB and an OTA page above"
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
