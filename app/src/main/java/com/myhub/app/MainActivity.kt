@@ -410,6 +410,13 @@ class MainActivity : Activity() {
      * all. The manual form answers either way, so tapping Check for updates never does nothing.
      */
     private fun checkUpdates(silent: Boolean) {
+        // A copy installed by Play is updated by Play. Asking GitHub as well would offer a download
+        // the store already handles, and pointing a Play install at an APK is exactly what Play's
+        // policy forbids, so the check is skipped and the listing is opened instead.
+        if (Updater.fromPlay(this)) {
+            if (!silent) Updater.openStore(this)
+            return
+        }
         if (!silent) toast("Checking for updates\u2026")
         Updater.check { update ->
             runOnUiThread {
@@ -510,7 +517,9 @@ class MainActivity : Activity() {
                     "when it opens it asks GitHub for the newest release of itself, so it can tell " +
                     "you when a newer one exists and take you to it instead of leaving you to hunt " +
                     "for it. That request is for a public release and carries nothing else; Check " +
-                    "for updates behind the gear asks again on demand.\n\n" +
+                    "for updates behind the gear asks again on demand. A copy installed from Google " +
+                    "Play makes no such request at all: Play is what installs its updates, and " +
+                    "Check for updates opens the Play listing instead.\n\n" +
                     "When a card has been opened from here, it also says how long that app was " +
                     "actually in front, taken from the phone's own usage log - which stops " +
                     "counting when the screen does or you move to something else, so a night's " +
