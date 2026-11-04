@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish, e.g. 1.8.2'
+        description: 'Version to publish, e.g. 1.8.3'
         required: true
 
 permissions:
@@ -94,8 +94,11 @@ jobs:
       # The manifest the installed hub reads, the same one every other app here publishes beside
       # itself: version, the file to fetch, its size, and the notes for it taken from PATCH_NOTES.
       # releases/latest/download/updates.json always resolves to the newest release's copy.
-      # A note wraps over several lines in the markdown; the continuation lines are joined back
-      # onto the bullet they belong to, so the manifest carries whole sentences.
+      #
+      # A note in the markdown wraps over several lines and sits under ### Added / ### Fixed, so
+      # those subheadings are skipped rather than treated as the end of the entry, and a wrapped
+      # line is joined back onto the bullet it belongs to. If no note is found the run stops: an
+      # update that announces nothing is worse than no release.
       - name: Write the update manifest
         run: |
           python3 - "${{ steps.v.outputs.name }}" "MyHub-${{ steps.v.outputs.name }}.apk" <<'PY'
@@ -112,15 +115,21 @@ jobs:
                       s = line.strip()
                       if not s:
                           continue
+                      if s.startswith('###'):
+                          continue
+                      if s.startswith('##'):
+                          break
+                      if s.startswith('#'):
+                          continue
                       if s.startswith(('- ', '* ')):
                           notes.append(s[2:].strip())
-                      elif s.startswith('#'):
-                          break
                       elif notes:
                           notes[-1] += ' ' + s
-          except OSError:
-              pass
+          except OSError as e:
+              sys.exit('PATCH_NOTES.md could not be read: %s' % e)
           notes = [re.sub(r'\*{1,2}|`', '', n) for n in notes]
+          if not notes:
+              sys.exit('no patch notes found under %s - write them before releasing' % version)
           manifest = {
               'version': version,
               'apk': apk,

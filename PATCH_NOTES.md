@@ -4,6 +4,16 @@ What changed in each release, newest first. Everything here ships as a signed AP
 the same build as an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag.
 
+## 1.8.3 — an update that says what changed
+
+### Fixed
+- 1.8.2 shipped a manifest with no notes in it at all. The extractor treated the `### Fixed`
+  subheading as the end of the entry, so it never reached a bullet. Subheadings are now skipped,
+  and a wrapped line is joined back onto the bullet it belongs to, so the notes in the manifest are
+  the whole sentences from this file — five of them for this release.
+- A release now **fails** if it finds no note for its version, instead of publishing an update that
+  announces nothing. Patch notes are part of a release here, so a missing one stops the run.
+
 ## 1.8.2 — the notes that come with the update are whole sentences
 
 ### Fixed
@@ -47,7 +57,7 @@ the same build as an AAB for Play Console, made by
   (`MyHubUpdater`) instead of vanishing into a null.
 
 ### Changed
-- `versionCode` is computed from `versionName` — 1.8.2 is 10802 — instead of being typed beside it.
+- `versionCode` is computed from `versionName` — 1.8.3 is 10803 — instead of being typed beside it.
   A release therefore always installs over the build it replaces, and the two numbers cannot drift
   apart.
 
