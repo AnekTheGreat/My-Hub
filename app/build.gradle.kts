@@ -23,8 +23,10 @@ android {
         targetSdk = 36
         // One source of truth: the name is written once and the code is computed from it, so the
         // APK on a phone, the APK CI builds and the release the updater reads can never disagree,
-        // and each release installs over the one before it - 1.8.5 -> 10805 over 1.8.4 -> 10804.
-        versionName = "1.8.5"
+        // and each release installs over the one before it - 1.9.0 -> 10900 over 1.8.5 -> 10805.
+        // The screen ships separately, as a page, and release.yml refuses a release whose page
+        // names any other version than this one.
+        versionName = "1.9.0"
         versionCode = versionName!!.split(".").let { p ->
             p[0].toInt() * 10_000 + p[1].toInt() * 100 + p[2].toInt()
         }
@@ -78,6 +80,7 @@ android {
     }
 }
 
-// No dependencies on purpose. The hub - updater included - is built from classes the Android
-// framework already has, so there is nothing to download, nothing to conflict, and nothing to keep
-// up to date.
+// No dependencies on purpose. The hub - the bridge, the updater and the page that loads over the
+// air - is built from classes the Android framework already has: WebView, org.json,
+// HttpURLConnection. There is nothing to download, nothing to conflict, and nothing to keep up to
+// date.
