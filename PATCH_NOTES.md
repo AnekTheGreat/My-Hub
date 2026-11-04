@@ -4,6 +4,25 @@ What changed in each release, newest first. Everything here ships as a signed AP
 the same build as an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag.
 
+## 1.8.4 — the update no longer installs itself, so Play Protect stops calling it harmful
+
+### Fixed
+- **Play Protect read the hub as harmful, because the hub was behaving the way a dropper does.**
+  `Updater` downloaded the release APK into its own cache and handed it to Android's installer, and
+  that hand-off is what `REQUEST_INSTALL_PACKAGES` exists for: a sideloaded app that fetches code
+  over the network and then asks to install it is exactly the shape Play Protect is built to block,
+  whatever it means to do. The permission, the download and the hand-off are all gone. Tapping an
+  offered update now opens the release page in the browser, the APK downloads there, and the
+  phone's own installer installs it from outside the hub.
+- `ApkProvider` is deleted. It existed only to serve that downloaded APK to the installer, and with
+  nothing to serve it was a `ContentProvider` and a permission that only looked suspicious.
+
+### Changed
+- The check itself is unchanged: it still reads the manifest published with the release, compares
+  the version against the build on the phone, and shows the notes before anything is downloaded.
+- The gear's update dialog now says what actually happens — the release opens in the browser —
+  instead of promising an install the app no longer performs.
+
 ## 1.8.3 — an update that says what changed
 
 ### Fixed
@@ -57,7 +76,7 @@ the same build as an AAB for Play Console, made by
   (`MyHubUpdater`) instead of vanishing into a null.
 
 ### Changed
-- `versionCode` is computed from `versionName` — 1.8.3 is 10803 — instead of being typed beside it.
+- `versionCode` is computed from `versionName` — 1.8.4 is 10804 — instead of being typed beside it.
   A release therefore always installs over the build it replaces, and the two numbers cannot drift
   apart.
 
@@ -72,14 +91,11 @@ the same build as an AAB for Play Console, made by
   downloaded unless there is a newer release.
 
 ### Changed
-- The manifest now asks for **INTERNET** and **REQUEST_INSTALL_PACKAGES**. That is the hub's only
-  connection and it exists for this: one GET for a public release, then the APK itself. There is no
-  account, no identifier, and nothing uploaded — the README previously said the hub never touches
-  the network, and now says what the one request is for.
+- The manifest now asked for **INTERNET** and **REQUEST_INSTALL_PACKAGES**. The install permission
+  is gone as of 1.8.4, for the reason given there.
 - The updater is written on the framework, not on a library: a thread and `HttpURLConnection` for
-  the check and the download, `org.json` for the release, and `ApkProvider` — a one-file
-  `ContentProvider` — for the hand-off to the installer, because `file://` URIs have been refused
-  since Android 7. The hub still has no dependencies.
+  the check, `org.json` for the release, and — until 1.8.4 — `ApkProvider`, a one-file
+  `ContentProvider`, for the hand-off to the installer. The hub still has no dependencies.
 
 ## 1.6.0 — SideCut is a card again, and every build has an AAB
 
