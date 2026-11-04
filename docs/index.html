@@ -1,1 +1,135 @@
-@@HUB_POLICY@@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Hub — Privacy Policy</title>
+<meta name="description" content="Privacy policy for the My Hub Android app: what it reads on your phone, what it never sends, and how to delete it.">
+<style>
+  :root {
+    --ink: #10151f;
+    --muted: #5b6577;
+    --paper: #fbfaf7;
+    --rule: #e3ded4;
+    --accent: #1d3f6e;
+    --card: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #eceff4;
+      --muted: #a3adbd;
+      --paper: #12161d;
+      --rule: #2b3340;
+      --accent: #9dc0f0;
+      --card: #181e27;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    padding: 3rem 1.25rem 5rem;
+    background: var(--paper);
+    color: var(--ink);
+    font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 44rem; margin: 0 auto; }
+  header { border-bottom: 1px solid var(--rule); padding-bottom: 1.25rem; margin-bottom: 2rem; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .5rem; letter-spacing: -.01em; }
+  h2 { font-size: 1.15rem; margin: 2.5rem 0 .6rem; letter-spacing: -.005em; }
+  h3 { font-size: 1rem; margin: 1.5rem 0 .3rem; }
+  p, li { margin: 0 0 .85rem; }
+  ul { padding-left: 1.25rem; }
+  li { margin-bottom: .5rem; }
+  .sub { color: var(--muted); font-size: .95rem; margin: 0; }
+  .lede {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+    margin: 0 0 2rem;
+  }
+  .lede p:last-child { margin-bottom: 0; }
+  a { color: var(--accent); }
+  code { font-size: .9em; background: var(--card); border: 1px solid var(--rule); border-radius: 4px; padding: .05em .3em; }
+  footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <h1>My Hub — Privacy Policy</h1>
+  <p class="sub">Applies to My Hub for Android, version 1.8.5 and later, including the build distributed on Google Play. Effective 4 November 2026.</p>
+</header>
+
+<div class="lede">
+  <p><strong>The short version: My Hub has no account, no analytics, no ads and no server of its own. Nothing you do in it is collected by us, because there is nowhere for it to go.</strong></p>
+  <p>Everything the app records — which app each card opens, and how long a card's app was on screen — is stored on your phone and stays there. The app makes exactly one kind of network request on its own: asking GitHub whether a newer version exists. That request contains nothing about you or your phone.</p>
+</div>
+
+<h2>Who we are</h2>
+<p>My Hub is an independent Android app. In this policy, “we” and “us” mean the app's developer. “The app” means My Hub. You can reach us at the address in <a href="#contact">Contact</a>.</p>
+
+<h2>What the app reads on your phone, and why</h2>
+
+<h3>The apps installed on your phone</h3>
+<p>To draw its cards and to let you point a card at an app by hand, My Hub asks Android for the list of installed apps that have a launcher icon. It also asks the name and icon of an app so a card can be labelled. This is read on the phone, when the screen is drawn, and is not stored — apart from the package name of an app you pick for a card, which is remembered so the card still opens it next time.</p>
+<p>The app does not read your files, your messages, your contacts, your photos, your location, your calendar, your call history or your accounts. It has no permission to do any of those things.</p>
+
+<h3>Usage access (optional, and off until you turn it on)</h3>
+<p>Each card can show how long its app was actually on screen. To work that out, My Hub needs <em>Usage access</em>, which Android grants with a switch in Settings rather than a permission prompt. It is entirely optional: with the switch off, no time is recorded and the card offers the switch instead of a number.</p>
+<p>When the switch is on, the app reads the phone's own usage log to measure one thing: how long the app you just opened from a card was in the foreground, between the moment you tapped the card and the moment you came back to My Hub. It reads that once, when you return, and only for the app you opened. It does not scan your usage history, it does not run in the background, and it does not look at any other app.</p>
+<p>The resulting time, a count of visits and the time of the last visit are saved on your phone. You can revoke Usage access at any time in Android Settings, and you can clear each card's numbers in the app.</p>
+
+<h3>Your settings</h3>
+<p>The app remembers which app each card was pointed at, and the times described above, in the app's own private preferences on your phone. Other apps cannot read them.</p>
+
+<h2>What leaves your phone</h2>
+
+<h3>Checking for a new version</h3>
+<p>When the app looks for a newer release, it requests the latest release information for this app from GitHub (<code>api.github.com</code> and <code>github.com</code>). Like any web request, that one carries your IP address and standard request headers, which GitHub receives and handles under <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub's privacy statement</a>. The request carries no identifier for you, your phone or your installation, and the app sends nothing else to anyone.</p>
+<p><strong>If you installed My Hub from Google Play, the app does not contact GitHub at all.</strong> It asks Google Play whether an update exists, and Play delivers it. You can also avoid the check on a sideloaded copy by simply not tapping <em>Check for updates</em>.</p>
+<p>Tapping an offered update opens this app's GitHub release page in your browser. From that point you are on GitHub, in your browser, under GitHub's terms — not inside My Hub.</p>
+
+<h3>The tip jar</h3>
+<p>My Hub offers a tip jar with five fixed amounts. Choosing one opens a Stripe payment page in your browser. The payment is made on Stripe's site, under <a href="https://stripe.com/privacy">Stripe's privacy policy</a>; the app never sees your card number or any payment detail, and Stripe sends nothing back to the app. Tipping unlocks nothing — the app is the same either way.</p>
+
+<h2>What we never do</h2>
+<ul>
+  <li>We do not collect, transmit or store your personal data on any server. There is no server.</li>
+  <li>We do not use analytics, crash reporting, advertising or attribution software. The app is built from the Android framework alone, with no third-party libraries at all.</li>
+  <li>We do not sell, rent or share data with anyone, because we do not have it.</li>
+  <li>We do not track you across other apps or websites, and the app contains no advertising identifier.</li>
+  <li>We do not ask for your name, email address, phone number or any account.</li>
+</ul>
+
+<h2>Keeping and deleting your data</h2>
+<p>Everything My Hub stores lives on your phone, in the app's private storage. It is never copied anywhere else by us.</p>
+<ul>
+  <li>To clear one card's remembered app and times, long-press the card and use <em>Clear</em>.</li>
+  <li>To clear every card's stored data, use the clear option in the app's settings.</li>
+  <li>To remove everything at once, uninstall the app. Android deletes its private storage with it.</li>
+  <li>To stop the app reading the usage log, revoke Usage access in Android Settings.</li>
+</ul>
+<p>Because we never receive your data, there is nothing for us to delete on your behalf and no request to send us.</p>
+
+<h2>Backups</h2>
+<p>My Hub allows Android's own app-backup feature. If backup is enabled on your device, Android may include the app's stored data — the cards' remembered apps and times — in your device backup or your Google account's backup, which is controlled by your Google settings and by Google's privacy policy, not by us. You can turn backup off in Android Settings, and uninstalling the app removes its data from the device.</p>
+
+<h2>Children</h2>
+<p>My Hub is a general-purpose app launcher and is not directed at children. It collects no personal data from anyone, of any age.</p>
+
+<h2>Changes to this policy</h2>
+<p>If a future version of the app changes what it does with data, this page will be updated before that version is released, and the effective date above will change. The current version of this policy always lives at this address.</p>
+
+<h2 id="contact">Contact</h2>
+<p>Questions about this policy or about what the app does can go to <a href="mailto:sidecutsupport@gmail.com">sidecutsupport@gmail.com</a>, or to the issue tracker at <a href="https://github.com/AnekTheGreat/My-Hub/issues">github.com/AnekTheGreat/My-Hub</a>.</p>
+
+<footer>
+  <p>My Hub — package <code>com.myhub.app</code>. This policy covers the Google Play build and the sideloaded build alike; they handle data identically apart from where they look for updates, as described above.</p>
+</footer>
+
+</main>
+</body>
+</html>
