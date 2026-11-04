@@ -1,1 +1,169 @@
-__RELEASE_YML__
+name: Release APK + AAB
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish, e.g. 1.8.5'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Signed APK, AAB and GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Reconstruct the signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::the KEYSTORE_BASE64 secret is not set for this repository"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/myhub.p12"
+          echo "SIGNING_STORE_FILE=$RUNNER_TEMP/myhub.p12" >> "$GITHUB_ENV"
+
+      - name: Resolve version
+        id: v
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="${{ inputs.version }}"
+          fi
+          if [ -z "$V" ]; then echo "no version resolved"; exit 1; fi
+          echo "name=$V" >> "$GITHUB_OUTPUT"
+          echo "releasing $V"
+
+      # The version the APK carries is the one build.gradle.kts names, and the updater compares
+      # its own version with this release's. If they disagree, every installed copy is offered a
+      # release it will then refuse to install, so the mismatch stops the run here.
+      - name: Check the tag matches the version the APK will carry
+        run: |
+          BUILT="$(grep -oE 'versionName = "[^"]+"' app/build.gradle.kts | head -1 | cut -d'"' -f2)"
+          echo "tag says ${{ steps.v.outputs.name }}, gradle says $BUILT"
+          if [ "$BUILT" != "${{ steps.v.outputs.name }}" ]; then
+            echo "::error::build.gradle.kts names $BUILT but this release is ${{ steps.v.outputs.name }}"
+            exit 1
+          fi
+
+      # A release attaches both formats, laid out flat and named with the version, the way
+      # SideCut's releases are: an APK to install by hand and the same build as an AAB for Play.
+      - name: Build the signed release APK and AAB
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: myhub
+        run: gradle assembleRelease bundleRelease --no-daemon --stacktrace
+
+      - name: Name the files
+        run: |
+          APK=app/build/outputs/apk/release/app-release.apk
+          AAB=app/build/outputs/bundle/release/app-release.aab
+          STATUS=0
+          if [ ! -f "$APK" ]; then
+            echo "::error::no signed APK was produced - check the keystore secrets"
+            STATUS=1
+          fi
+          if [ ! -f "$AAB" ]; then
+            echo "::error::no AAB was produced by bundleRelease"
+            STATUS=1
+          fi
+          [ "$STATUS" -eq 0 ] || exit 1
+          cp "$APK" "MyHub-${{ steps.v.outputs.name }}.apk"
+          cp "$AAB" "MyHub-${{ steps.v.outputs.name }}.aab"
+          ls -l MyHub-*
+
+      # The manifest the installed hub reads, the same one every other app here publishes beside
+      # itself: version, the file to fetch, its size, and the notes for it taken from PATCH_NOTES.
+      # releases/latest/download/updates.json always resolves to the newest release's copy.
+      #
+      # A note in the markdown wraps over several lines and sits under ### Added / ### Fixed, so
+      # those subheadings are skipped rather than treated as the end of the entry, and a wrapped
+      # line is joined back onto the bullet it belongs to. If no note is found the run stops: an
+      # update that announces nothing is worse than no release.
+      - name: Write the update manifest
+        run: |
+          python3 - "${{ steps.v.outputs.name }}" "MyHub-${{ steps.v.outputs.name }}.apk" <<'PY'
+          import json, os, re, sys
+          version, apk = sys.argv[1], sys.argv[2]
+          notes = []
+          try:
+              md = open('PATCH_NOTES.md', encoding='utf-8').read()
+              m = re.search(r'^##\s+' + re.escape(version) + r'\b.*?$(.*?)(?=^##\s|\Z)', md, re.S | re.M)
+              if m is None:
+                  m = re.search(r'^##\s+.*?$(.*?)(?=^##\s|\Z)', md, re.S | re.M)
+              if m:
+                  for line in m.group(1).splitlines():
+                      s = line.strip()
+                      if not s:
+                          continue
+                      if s.startswith('###'):
+                          continue
+                      if s.startswith('##'):
+                          break
+                      if s.startswith('#'):
+                          continue
+                      if s.startswith(('- ', '* ')):
+                          notes.append(s[2:].strip())
+                      elif notes:
+                          notes[-1] += ' ' + s
+          except OSError as e:
+              sys.exit('PATCH_NOTES.md could not be read: %s' % e)
+          notes = [re.sub(r'\*{1,2}|`', '', n) for n in notes]
+          if not notes:
+              sys.exit('no patch notes found under %s - write them before releasing' % version)
+          manifest = {
+              'version': version,
+              'apk': apk,
+              'size': os.path.getsize(apk),
+              'notes': notes[:6],
+              'date': '',
+          }
+          with open('updates.json', 'w', encoding='utf-8') as f:
+              json.dump(manifest, f, ensure_ascii=False)
+          print(open('updates.json', encoding='utf-8').read())
+          PY
+
+      # Play's two hard checks, run before anything is published: an upload must target API 36 or
+      # newer, and it must not ask to install other packages. Both are one grep away, and neither
+      # is worth discovering in a review queue days later.
+      - name: Check the build is Play-ready
+        run: |
+          grep -q 'compileSdk = 36' app/build.gradle.kts \
+            || { echo "::error::compileSdk is not 36 - AGP 8.10 is needed for API 36"; exit 1; }
+          grep -q 'targetSdk = 36' app/build.gradle.kts \
+            || { echo "::error::targetSdk is not 36 - Play refuses a bundle that targets less"; exit 1; }
+          if grep -q 'REQUEST_INSTALL_PACKAGES' app/src/main/AndroidManifest.xml; then
+            echo "::error::the manifest asks to install packages, which Play reads as a self-updater"
+            exit 1
+          fi
+          echo "Play-ready: API 36, no REQUEST_INSTALL_PACKAGES, signed AAB above"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.v.outputs.name }}
+          name: My Hub ${{ steps.v.outputs.name }}
+          files: |
+            MyHub-${{ steps.v.outputs.name }}.apk
+            MyHub-${{ steps.v.outputs.name }}.aab
+            updates.json
+          generate_release_notes: true
