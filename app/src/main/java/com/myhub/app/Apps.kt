@@ -40,7 +40,11 @@ object Apps {
         HubApp(
             id = "famTM",
             title = "FamTM",
-            packages = listOf("com.familytree.app"),
+            // FamTM installs as com.FamTM.app. It used to be com.familytree.app, and that id is not
+            // this card's to look for: it belongs to another listing, so a build that answered to it
+            // would be somebody else's app wearing the FamTM tile. A phone still carrying the old
+            // build is found by its name instead, which is what the aliases are for.
+            packages = listOf("com.FamTM.app"),
             aliases = listOf("FamTM", "Family Tree")
         ),
         HubApp(

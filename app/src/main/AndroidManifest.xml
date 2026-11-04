@@ -46,6 +46,9 @@
       release build its card opens, and com.SideCut.myapp.full is the sideloaded full build that
       lives in a slot by hand.
 
+      FamTM is com.FamTM.app: it was com.familytree.app until that turned out to be another
+      listing's id, and a package name is only ever one app's.
+
       The two slots need nothing here: a slot is an app chosen by hand from the launcher list, and
       that list is already visible through the intent above.
     -->
@@ -54,7 +57,7 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
-        <package android:name="com.familytree.app" />
+        <package android:name="com.FamTM.app" />
         <package android:name="com.SideCut.myapp" />
         <package android:name="com.SideCut.myapp.full" />
         <package android:name="com.CompassEDC.myapp" />
