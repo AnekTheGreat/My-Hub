@@ -419,7 +419,7 @@ class MainActivity : Activity() {
         }
     }
 
-    /** Say what the release changes before a byte of it is downloaded. */
+    /** Say what the release changes, and what tapping the button will do about it. */
     private fun offerUpdate(update: Update) {
         val notes = update.notes.lines()
             .map { it.trim().removePrefix("-").trim() }
@@ -431,26 +431,22 @@ class MainActivity : Activity() {
             .setMessage(
                 "You have ${BuildConfig.VERSION_NAME}.\n\n" +
                     (if (notes.isNotEmpty()) "$notes\n\n" else "") +
-                    "It downloads from this repository's releases and hands the file to " +
-                    "Android's installer, which asks before anything is installed."
+                    "The release opens in your browser: the APK downloads there and your " +
+                    "phone's own installer takes it from outside the hub. My Hub does not " +
+                    "download or install anything itself."
             )
-            .setPositiveButton("Download") { _, _ -> fetchUpdate(update) }
+            .setPositiveButton("Open the release") { _, _ -> browseUpdate(update) }
             .setNegativeButton("Later", null)
             .show()
     }
 
-    private fun fetchUpdate(update: Update) {
-        // Android will not install a package from an app the owner has not allowed to install, so
-        // the switch is opened first - the alternative is a Download button that does nothing.
-        if (!Updater.ensurePermission(this)) return
-        toast("Downloading My Hub ${update.version}\u2026")
-        Updater.download(this, update) { ok ->
-            runOnUiThread {
-                if (!ok) toast("The download failed - try again when there is a connection")
-                else Updater.install(this)
-            }
-        }
-    }
+    /**
+     * The update is taken from the release page in the browser, not from here. Nothing is
+     * downloaded into the hub's cache and nothing is handed to an installer, which is exactly why
+     * the app no longer asks for permission to install packages - and why Play Protect stopped
+     * reading it as a dropper.
+     */
+    private fun browseUpdate(update: Update) = Updater.browse(this, update)
 
     /**
      * The tip jar. The five amounts are Stripe Payment Links - fixed amounts on a page Stripe
@@ -511,10 +507,10 @@ class MainActivity : Activity() {
                     "want. The choice is remembered, and 'Use the default' puts a built-in card " +
                     "back to searching.\n\n" +
                     "Nothing about you is sent anywhere. The hub makes one connection of its own: " +
-                    "when it opens it asks GitHub for the newest release of itself, so a new " +
-                    "version can install itself instead of being hunted for. That request is for a " +
-                    "public release and carries nothing else; Check for updates behind the gear " +
-                    "asks again on demand.\n\n" +
+                    "when it opens it asks GitHub for the newest release of itself, so it can tell " +
+                    "you when a newer one exists and take you to it instead of leaving you to hunt " +
+                    "for it. That request is for a public release and carries nothing else; Check " +
+                    "for updates behind the gear asks again on demand.\n\n" +
                     "When a card has been opened from here, it also says how long that app was " +
                     "actually in front, taken from the phone's own usage log - which stops " +
                     "counting when the screen does or you move to something else, so a night's " +
