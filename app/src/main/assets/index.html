@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#10243B">
+<title>My Hub</title>
+<!-- myhub-page: every published copy carries this line, and the shell refuses a download without it. -->
+<style>
+:root{
+  --bg:#0C1A2B; --bg-top:#10243B; --card:#16283F; --card-down:#1C314C;
+  --line:#22344C; --line-down:#2C4260; --ink:#F2F6FB; --mute:#8FA3B8;
+  --chevron:#47617A; --timed:#63C6A6; --badge:#1D3459;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  margin:0; background:linear-gradient(158deg,var(--bg-top),var(--bg) 58%);
+  color:var(--ink); overflow:hidden;
+  font-family:-apple-system,"Roboto","Helvetica Neue",Arial,sans-serif;
+  display:flex; flex-direction:column;
+  user-select:none; -webkit-user-select:none;
+}
+header{display:flex;align-items:center;padding:26px 10px 0 22px;flex:0 0 auto}
+h1{margin:0;flex:1;font-size:27px;font-weight:500;letter-spacing:-.01em}
+#gear{width:42px;height:42px;padding:10px;border:0;background:none;color:var(--mute);
+  display:flex;align-items:center;justify-content:center}
+#gear svg{width:22px;height:22px;fill:currentColor}
+#summary{padding:4px 22px 2px;font-size:12.5px;color:var(--mute);flex:0 0 auto}
+#summary:empty{display:none}
+#list{flex:1 1 auto;overflow-y:auto;padding:0 16px 20px;-webkit-overflow-scrolling:touch}
+.section{padding:16px 8px 9px;font-size:10.5px;letter-spacing:.18em;color:var(--chevron);font-weight:500}
+.card{display:flex;align-items:center;padding:14px 15px;margin-bottom:10px;border-radius:20px;
+  background:var(--card);border:1px solid transparent;
+  box-shadow:0 1px 3px rgba(0,0,0,.35);transition:background .12s,border-color .12s}
+.card.missing{background:transparent;border-color:var(--line);box-shadow:none}
+.card.pressed{background:var(--card-down)}
+.card.missing.pressed{background:transparent;border-color:var(--line-down)}
+.icon{width:44px;height:44px;flex:0 0 44px;border-radius:13px;display:flex;align-items:center;
+  justify-content:center;font-size:18px;font-weight:500;color:var(--mute);overflow:hidden}
+.icon img{width:100%;height:100%;object-fit:contain}
+.icon.letter{background:var(--badge)}
+.icon.plus{background:transparent;border:1px solid var(--line);font-size:21px}
+.body{flex:1;min-width:0;padding:0 8px 0 15px}
+.name{font-size:16px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card.missing .name{color:var(--mute)}
+.sub{margin-top:4px;font-size:11.5px;color:var(--mute);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;font-weight:400}
+.sub.timed{color:var(--timed)}
+.chev{color:var(--chevron);font-size:21px;line-height:1;flex:0 0 auto}
+footer{flex:0 0 auto;text-align:center;color:var(--chevron);font-size:11px;padding:8px 16px 18px}
+#scrim{position:fixed;inset:0;background:rgba(4,10,18,.62);display:none;align-items:flex-end;
+  justify-content:center;z-index:20}
+#scrim.open{display:flex}
+.sheet{width:100%;max-width:520px;background:#12243A;border-radius:22px 22px 0 0;
+  padding:0 0 14px;max-height:80vh;display:flex;flex-direction:column;
+  box-shadow:0 -12px 34px rgba(0,0,0,.45)}
+.sheet h2{margin:0;padding:18px 20px 10px;font-size:16px;font-weight:500;color:var(--ink)}
+.sheet .scroll{overflow-y:auto;-webkit-overflow-scrolling:touch}
+.row{padding:15px 20px;font-size:15px;color:var(--ink);border-top:1px solid rgba(255,255,255,.07)}
+.row:first-child{border-top:0}
+.row .sub{margin-top:3px;font-size:11.5px;color:var(--mute);font-family:ui-monospace,monospace}
+.note{padding:0 20px 14px;font-size:13px;line-height:1.55;color:var(--mute);white-space:pre-wrap}
+.actions{display:flex;gap:10px;padding:10px 20px 2px}
+.btn{flex:1;padding:13px 0;border-radius:15px;border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.05);color:var(--mute);font-size:14px;font-family:inherit}
+.btn.primary{border:0;background:#2F6FB2;color:#fff;font-weight:600}
+#toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%);background:#1B3350;
+  color:var(--ink);font-size:13px;padding:11px 16px;border-radius:14px;opacity:0;
+  pointer-events:none;transition:opacity .18s;z-index:40;max-width:88vw;text-align:center}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <h1>My Hub</h1>
+  <button id="gear" aria-label="Settings">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9.4 4c0 .44-.04.87-.11 1.29l2.06 1.56-2 3.42-2.4-1a7.5 7.5 0 0 1-2.2 1.28l-.33 2.55h-3.94l-.33-2.55a7.5 7.5 0 0 1-2.2-1.28l-2.4 1-2-3.42 2.06-1.56a7.6 7.6 0 0 1 0-2.58L1.55 9.15l2-3.42 2.4 1a7.5 7.5 0 0 1 2.2-1.28l.33-2.55h3.94l.33 2.55a7.5 7.5 0 0 1 2.2 1.28l2.4-1 2 3.42-2.06 1.56c.07.42.11.85.11 1.29z"/></svg>
+  </button>
+</header>
+<div id="summary"></div>
+<main id="list"></main>
+<footer>Hold a card to change its app</footer>
+<div id="scrim"></div>
+<div id="toast"></div>
+
+<script>
+/* The screen My Hub draws. The version here is compared with the release's before a page update is
+   applied, and release.yml refuses to publish unless it matches the version in build.gradle.kts. */
+var HUB_PAGE = "1.9.0";
+
+var native = window.Hub || null;
+var S = null;
+var pressTimer = null;
+var longPressed = false;
+
+function $(s){ return document.querySelector(s); }
+function esc(s){
+  return String(s).replace(/[&<>"]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+  });
+}
+function json(text){
+  try { return JSON.parse(text); } catch (e) { return null; }
+}
+
+/* "1h 24m", "7m", "<1m" - minutes are the smallest unit kept. */
+function human(ms){
+  var mins = Math.floor(ms / 60000), h = Math.floor(mins / 60), m = mins % 60;
+  if (h > 0) return h + 'h ' + m + 'm';
+  if (mins > 0) return mins + 'm';
+  return '<1m';
+}
+
+/* "just now", "3h ago", "2d ago" - when a card's app was last opened from the hub. */
+function ago(last){
+  if (!last) return null;
+  var mins = Math.floor((Date.now() - last) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  if (mins < 1440) return Math.floor(mins / 60) + 'h ago';
+  return Math.floor(mins / 1440) + 'd ago';
+}
+
+function find(id){
+  if (!S) return null;
+  for (var i = 0; i < S.cards.length; i++) if (S.cards[i].id === id) return S.cards[i];
+  return null;
+}
+
+/* ---- the screen ---- */
+
+function render(){
+  if (!native){
+    $('#summary').textContent = '';
+    $('#list').innerHTML = '<div class="card missing"><div class="icon plus">!</div>' +
+      '<div class="body"><div class="name">This screen runs inside My Hub</div>' +
+      '<div class="sub">Open the app on your phone.</div></div></div>';
+    return;
+  }
+  S = json(native.state());
+  if (!S) return;
+  var html = '', appsTitled = false, slotsTitled = false;
+  for (var i = 0; i < S.cards.length; i++){
+    var c = S.cards[i];
+    if (!c.slot && !appsTitled){ html += '<div class="section">YOUR APPS</div>'; appsTitled = true; }
+    if (c.slot && !slotsTitled){ html += '<div class="section">YOUR SLOTS</div>'; slotsTitled = true; }
+    html += cardHtml(c);
+  }
+  $('#list').innerHTML = html;
+  var sum = '';
+  if (S.missing > 0) sum = S.missing + ' of ' + S.presets + ' apps still need to be added';
+  else if (S.tracked > 0) sum = human(S.tracked) + ' across your apps';
+  $('#summary').textContent = sum;
+  bindCards();
+}
+
+function cardHtml(c){
+  var here = !!c.pkg;
+  var glyph = '';
+  if (here) glyph = c.icon ? '<img alt="" src="' + c.icon + '">' : '';
+  else if (c.slot) glyph = '+';
+  else glyph = esc(String(c.title).trim().charAt(0).toUpperCase());
+  var cls = 'icon' + (here ? '' : (c.slot ? ' plus' : ' letter'));
+  var sub = subtitle(c);
+  return '<div class="card' + (here ? '' : ' missing') + '" data-id="' + esc(c.id) + '">' +
+    '<div class="' + cls + '">' + glyph + '</div>' +
+    '<div class="body"><div class="name">' + esc(here ? c.label : c.title) + '</div>' +
+    (sub ? '<div class="sub' + (here && c.total > 0 ? ' timed' : '') + '">' + esc(sub) + '</div>' : '') +
+    '</div><div class="chev">&#8250;</div></div>';
+}
+
+function subtitle(c){
+  if (!c.pkg) return c.slot ? 'Empty \u00B7 tap to put an app here' : 'Not installed \u00B7 tap to choose an app';
+  if (c.total > 0){
+    var v = c.visits, when = ago(c.last);
+    return human(c.total) + ' over ' + v + ' ' + (v === 1 ? 'visit' : 'visits') +
+      (when ? ' \u00B7 last opened ' + when : '');
+  }
+  return null;
+}
+
+function bindCards(){
+  var cards = document.querySelectorAll('.card');
+  Array.prototype.forEach.call(cards, function(el){
+    var id = el.getAttribute('data-id');
+    el.addEventListener('pointerdown', function(){
+      longPressed = false;
+      el.classList.add('pressed');
+      clearTimeout(pressTimer);
+      pressTimer = setTimeout(function(){
+        longPressed = true;
+        el.classList.remove('pressed');
+        menu(id);
+      }, 550);
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function(ev){
+      el.addEventListener(ev, function(){ clearTimeout(pressTimer); el.classList.remove('pressed'); });
+    });
+    el.addEventListener('click', function(){
+      if (longPressed){ longPressed = false; return; }
+      var c = find(id);
+      if (!c) return;
+      if (c.pkg) openCard(c);
+      else picker(id);
+    });
+    el.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+  });
+}
+
+/* ---- sheets ---- */
+
+function sheet(title, opts){
+  opts = opts || {};
+  var rows = (opts.rows || []).map(function(r, i){
+    return '<div class="row" data-row="' + i + '">' + esc(r.label) +
+      (r.sub ? '<div class="sub">' + esc(r.sub) + '</div>' : '') + '</div>';
+  }).join('');
+  var note = opts.note ? '<div class="note">' + esc(opts.note) + '</div>' : '';
+  var buttons = (opts.buttons || []).map(function(b, i){
+    return '<button class="btn' + (b.primary ? ' primary' : '') + '" data-btn="' + i + '">' +
+      esc(b.label) + '</button>';
+  }).join('');
+  var scrim = $('#scrim');
+  scrim.innerHTML = '<div class="sheet"><h2>' + esc(title) + '</h2>' +
+    '<div class="scroll">' + rows + note + '</div>' +
+    (buttons ? '<div class="actions">' + buttons + '</div>' : '') + '</div>';
+  scrim.classList.add('open');
+  Array.prototype.forEach.call(scrim.querySelectorAll('[data-row]'), function(el){
+    el.addEventListener('click', function(){
+      var row = opts.rows[+el.getAttribute('data-row')];
+      if (row && row.run) row.run();
+    });
+  });
+  Array.prototype.forEach.call(scrim.querySelectorAll('[data-btn]'), function(el){
+    el.addEventListener('click', function(){
+      var b = opts.buttons[+el.getAttribute('data-btn')];
+      if (b && b.run) b.run();
+    });
+  });
+}
+
+function closeSheet(){
+  var scrim = $('#scrim');
+  scrim.classList.remove('open');
+  scrim.innerHTML = '';
+}
+
+function toast(message){
+  var el = $('#toast');
+  if (!el) return;
+  el.textContent = message;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.classList.remove('show'); }, 2400);
+}
+
+/* ---- what a card does ---- */
+
+function openCard(c){
+  var r = json(native.open(c.id));
+  if (r && r.ok === false) toast(r.message || 'Could not start that app');
+}
+
+function menu(id){
+  var c = find(id);
+  if (!c) return;
+  var rows = [];
+  if (c.pkg) rows.push({ label: 'Open', run: function(){ closeSheet(); openCard(c); } });
+  rows.push({
+    label: c.pkg ? 'Change the app\u2026' : 'Choose an app\u2026',
+    run: function(){ closeSheet(); picker(id); }
+  });
+  if (c.pkg && c.slot) rows.push({
+    label: 'Empty this slot',
+    run: function(){
+      native.bind(id, '');
+      closeSheet(); render();
+      toast(c.title + ' is empty again');
+    }
+  });
+  if (c.pkg) rows.push({
+    label: 'App info',
+    run: function(){ native.appInfo(c.pkg); closeSheet(); }
+  });
+  if (c.pkg && c.total > 0) rows.push({
+    label: "Reset this card's time",
+    run: function(){
+      native.resetCard(id);
+      closeSheet(); render();
+      toast("Cleared " + c.title + "'s time");
+    }
+  });
+  sheet(c.pkg ? c.label : c.title, {
+    rows: rows,
+    buttons: [{ label: 'Cancel', run: closeSheet }]
+  });
+}
+
+function picker(id){
+  var c = find(id);
+  if (!c) return;
+  var apps = json(native.picker(id)) || [];
+  if (!apps.length){
+    sheet(c.slot ? 'Put an app in ' + c.title : 'Open ' + c.title + ' with\u2026', {
+      note: 'This phone is not showing any apps to choose from.',
+      buttons: [{ label: 'Close', run: closeSheet }]
+    });
+    return;
+  }
+  var rows = apps.map(function(a){
+    return {
+      label: a.label,
+      sub: a.pkg,
+      run: function(){
+        native.bind(id, a.pkg);
+        closeSheet(); render();
+        toast(c.title + ' \u2192 ' + a.label);
+      }
+    };
+  });
+  sheet(c.slot ? 'Put an app in ' + c.title : 'Open ' + c.title + ' with\u2026', {
+    rows: rows,
+    buttons: [{
+      label: c.slot ? 'Empty the slot' : 'Use the default',
+      run: function(){ native.bind(id, ''); closeSheet(); render(); }
+    }]
+  });
+}
+
+/* ---- behind the gear ---- */
+
+function settings(){
+  var rows = [
+    { label: 'Refresh', run: function(){ closeSheet(); render(); toast('Checked again'); } },
+    { label: 'Check for updates', run: function(){ closeSheet(); native.checkUpdates(true); } },
+    { label: 'How the hub finds your apps', run: function(){ closeSheet(); about(); } },
+    { label: '\u2665 Support My Hub', run: function(){ closeSheet(); tips(); } }
+  ];
+  if (S && !S.usage) rows.push({
+    label: 'Turn on Usage access, to time each app',
+    run: function(){
+      closeSheet();
+      native.usageAccess();
+      toast('Turn My Hub on in Usage access, then come back');
+    }
+  });
+  rows.push({ label: 'Reset all tracked time', run: function(){ closeSheet(); confirmReset(); } });
+  sheet('My Hub', { rows: rows, buttons: [{ label: 'Close', run: closeSheet }] });
+}
+
+function tips(){
+  var links = (S && S.tips) || [];
+  var rows = links.map(function(t){
+    return {
+      label: 'Tip $' + t.dollars + ' through Stripe',
+      run: function(){ native.openUrl(t.url); closeSheet(); }
+    };
+  });
+  sheet('Support My Hub', {
+    note: 'Tips pay for the phone, the signing key and the time. Nothing unlocks: My Hub is the ' +
+      'same app whether you tip or not, and the page Stripe opens never comes back here.',
+    rows: rows,
+    buttons: [{ label: 'Not now', run: closeSheet }]
+  });
+}
+
+function confirmReset(){
+  sheet('Reset all tracked time', {
+    note: "Every card's total goes back to zero and its second line disappears again. Nothing " +
+      "else changes: the apps themselves, and which app each card opens, are untouched.",
+    buttons: [
+      { label: 'Cancel', run: closeSheet },
+      { label: 'Reset', primary: true, run: function(){
+          native.resetAll();
+          closeSheet(); render();
+          toast('Tracked time cleared');
+      }}
+    ]
+  });
+}
+
+function about(){
+  sheet('How the hub finds your apps', {
+    note:
+      'A card opens the app it found on this phone.\n\n' +
+      'The four cards the hub was built with look for their apps by package name, and if that ' +
+      'finds nothing they look for an app whose own name matches. SideCut\'s card opens the ' +
+      'release build, com.SideCut.myapp, and knows the name the phone shows it under, SideCut ' +
+      'Play; MeasureT installs from the Compass-EDC repository as com.CompassEDC.myapp; ' +
+      'UJournal installs from the Journal repository as app.ujournal.\n\n' +
+      'Slot 1 and Slot 2 are yours: they hold nothing until you choose an app for them, and then ' +
+      'they take that app\'s icon and name. Tap an empty slot to choose, or hold one that is ' +
+      'filled to change it or empty it again.\n\n' +
+      'Any card can be pointed at any app: press and hold it and choose the one you want. The ' +
+      'choice is remembered, and Use the default puts a built-in card back to searching.\n\n' +
+      'Nothing about you is sent anywhere. The hub makes one connection of its own: when it ' +
+      'opens it asks GitHub for the newest release of itself, so the screen can be brought up to ' +
+      'date and so it can tell you when a new build exists. That request is for a public release ' +
+      'and carries nothing else; Check for updates behind the gear asks again on demand.\n\n' +
+      'When a card has been opened from here, it also says how long that app was actually in ' +
+      'front, taken from the phone\'s own usage log, which stops counting when the screen does or ' +
+      'you move to something else - so a night\'s sleep is not charged to a card. Reading that ' +
+      'log needs Usage access: a one-off switch, not a permission prompt, found behind the gear.',
+    buttons: [{ label: 'Got it', run: closeSheet }]
+  });
+}
+
+/* ---- updates, asked for by the shell ---- */
+
+window.hubUpdate = function(payload){
+  var u = typeof payload === 'string' ? json(payload) : payload;
+  if (!u) return;
+  var notes = (u.notes || []).slice(0, 8).map(function(n){ return '\u2022 ' + n; }).join('\n');
+  var isPage = u.kind === 'page';
+  var now = (S && S.page) || HUB_PAGE;
+  var tail = isPage
+    ? 'The screen updates in place. Nothing is installed, Google Play is not involved, and the ' +
+      'app itself stays exactly as it is.'
+    : 'The release opens in your browser: the APK downloads there and your phone\'s own ' +
+      'installer takes it from outside the hub. My Hub does not download or install a package ' +
+      'itself.';
+  sheet(isPage ? 'My Hub ' + u.version + ' is ready' : 'My Hub ' + u.version + ' is out', {
+    note: 'You have ' + now + '.\n\n' + (notes ? notes + '\n\n' : '') + tail,
+    buttons: [
+      { label: 'Later', run: closeSheet },
+      {
+        label: isPage ? 'Update now' : 'Open the release',
+        primary: true,
+        run: function(){
+          closeSheet();
+          if (isPage){ toast('Updating\u2026'); native.updateNow(u.url, u.version); }
+          else native.openUrl(u.url);
+        }
+      }
+    ]
+  });
+};
+
+window.hubResume = function(){ render(); };
+window.hubToast = function(message){ toast(message); };
+
+/* ---- start ---- */
+
+$('#gear').addEventListener('click', settings);
+$('#scrim').addEventListener('click', function(e){ if (e.target === this) closeSheet(); });
+render();
+if (native) native.ready();
+</script>
+</body>
+</html>
