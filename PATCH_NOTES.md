@@ -4,6 +4,36 @@ What changed in each release, newest first. Everything here ships as a signed AP
 the same build as an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag.
 
+## 1.9.0 — the screen is a page now, so it updates without an installer
+
+### Changed
+- **My Hub draws a page instead of building its screen in Kotlin.** The cards, the picker, the gear
+  menu and the update sheet are `assets/index.html`, the same shape SideCut, MeasureT and FamTM
+  have always had. What stays native is the handful of things a page cannot do on Android: listing
+  the apps in the launcher, starting one, reading how long it was in front, the tip links, and the
+  update itself. They are reached through one bridge, which exposes nothing else.
+- **A screen update now arrives over the air.** On launch the hub reads `updates.json` from the
+  newest release; when it names a newer page, the page is fetched, checked for its marker and its
+  version, written into the app's own storage and loaded in place. No APK, no browser, no installer
+  prompt, and **Update now** is one tap — which is what an update should have felt like all along.
+- **The APK is the shell, and only changes when the shell does.** A release that only touched the
+  screen costs nothing to install because there is nothing to install; a release that changed the
+  bridge still offers the APK, and only to a copy that was not installed by Play.
+- **A copy installed from Google Play keeps the screen updates.** 1.8.5 made a Play copy skip the
+  check entirely; it now skips only the APK, so Play handles the build while the screen keeps
+  arriving on its own.
+- **A bad page cannot leave the hub blank.** Four rules: a download without the marker or without
+  the promised version is refused; the page must call `ready()` after drawing, or the stored copy is
+  deleted and the bundled one is loaded; a newly installed APK deletes any page stored before it;
+  and the file is replaced by a rename, so a half-written download is never served.
+
+### Fixed
+- **The status bar and keyboard no longer sit on top of the screen on Android 15 and 16.** Targeting
+  API 36 put the app edge to edge with no opt-out, so the page is padded by the system bars and the
+  IME instead of being drawn under them.
+- **The theme's background is painted behind the WebView**, so the first frame is navy rather than a
+  white flash, and the strips behind the system bars match the page.
+
 ## 1.8.5 — target Android 16, and a Play copy updates through Play
 
 ### Changed
