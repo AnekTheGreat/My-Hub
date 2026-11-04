@@ -29,7 +29,12 @@ fi
 # The embeddable compiler keeps its collections in trove; without it the compiler itself dies.
 TROVE=$(find "$CACHE/org.jetbrains.intellij.deps/trove4j" -name 'trove4j-*.jar' 2>/dev/null | sort | tail -1)
 ANNOT=$(find "$CACHE/org.jetbrains/annotations" -name 'annotations-*.jar' 2>/dev/null | sort | tail -1)
-if [ -z "$COMPILER" ] || [ -z "$STDLIB" ] || [ -z "$TROVE" ] || [ -z "$ANNOT" ]; then
+# Kotlin 2.x's compiler calls into kotlinx.coroutines, which does not live inside the embeddable
+# jar: without it the compiler dies with NoClassDefFoundError on kotlinx/coroutines/CoroutineScope
+# before it has read a line of either source file.
+CORO=$(find "$CACHE/org.jetbrains.kotlinx/kotlinx-coroutines-core-jvm" \
+    -name 'kotlinx-coroutines-core-jvm-*.jar' ! -name '*sources*' 2>/dev/null | sort | tail -1)
+if [ -z "$COMPILER" ] || [ -z "$STDLIB" ] || [ -z "$TROVE" ] || [ -z "$ANNOT" ] || [ -z "$CORO" ]; then
     echo "usage-sum: no Kotlin compiler in the Gradle cache - run a Gradle build once first" >&2
     exit 2
 fi
@@ -37,7 +42,7 @@ fi
 OUT=$(mktemp -d)
 trap 'rm -rf "$OUT"' EXIT
 
-"$JAVA" -cp "$COMPILER:$STDLIB:$TROVE:$ANNOT" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+"$JAVA" -cp "$COMPILER:$STDLIB:$TROVE:$ANNOT:$CORO" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
     -nowarn -no-reflect -no-stdlib -classpath "$STDLIB" -d "$OUT" \
     "$ROOT/app/src/main/java/com/myhub/app/UsageSum.kt" "$HERE/usage-sum-check.kt"
 
