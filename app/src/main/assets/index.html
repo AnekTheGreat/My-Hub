@@ -60,7 +60,7 @@ footer{flex:0 0 auto;text-align:center;color:var(--chevron);font-size:11px;paddi
 .sheet .scroll{overflow-y:auto;-webkit-overflow-scrolling:touch}
 .row{padding:15px 20px;font-size:15px;color:var(--ink);border-top:1px solid rgba(255,255,255,.07)}
 .row:first-child{border-top:0}
-.row .sub{margin-top:3px;font-size:11.5px;color:var(--mute);font-family:ui-monospace,monospace}
+.row .sub{margin-top:3px;font-size:11.5px;color:var(--mute);font-family:inherit;white-space:normal}
 .note{padding:0 20px 14px;font-size:13px;line-height:1.55;color:var(--mute);white-space:pre-wrap}
 .actions{display:flex;gap:10px;padding:10px 20px 2px}
 .btn{flex:1;padding:13px 0;border-radius:15px;border:1px solid rgba(255,255,255,.12);
@@ -88,7 +88,7 @@ footer{flex:0 0 auto;text-align:center;color:var(--chevron);font-size:11px;paddi
 <script>
 /* The screen My Hub draws. The version here is compared with the release's before a page update is
    applied, and release.yml refuses to publish unless it matches the version in build.gradle.kts. */
-var HUB_PAGE = "1.9.0";
+var HUB_PAGE = "1.10.0";
 
 var native = window.Hub || null;
 var S = null;
@@ -335,6 +335,7 @@ function settings(){
   var rows = [
     { label: 'Refresh', run: function(){ closeSheet(); render(); toast('Checked again'); } },
     { label: 'Check for updates', run: function(){ closeSheet(); native.checkUpdates(true); } },
+    { label: 'Check out the other apps', run: function(){ closeSheet(); others(); } },
     { label: 'How the hub finds your apps', run: function(){ closeSheet(); about(); } },
     { label: '\u2665 Support My Hub', run: function(){ closeSheet(); tips(); } }
   ];
@@ -348,6 +349,35 @@ function settings(){
   });
   rows.push({ label: 'Reset all tracked time', run: function(){ closeSheet(); confirmReset(); } });
   sheet('My Hub', { rows: rows, buttons: [{ label: 'Close', run: closeSheet }] });
+}
+
+/* The other apps in this collection. A hub already knows how to send someone to a page: the tip
+   rows use the same call, so the addresses can live here and a tap opens the browser. */
+var OTHERS = [
+  { label: 'UJournal', sub: 'A journal that opens on a shelf of books',
+    url: 'https://github.com/AnekTheGreat/Journal/releases/latest' },
+  { label: 'FamTM', sub: 'The family tree in your pocket',
+    url: 'https://github.com/AnekTheGreat/FamTM/releases/latest' },
+  { label: 'SideCut', sub: 'A music player with its own equaliser',
+    url: 'https://anekthegreat.github.io/SideCut/' },
+  { label: 'Compass EDC', sub: 'Compass, elevation, GPS and a level',
+    url: 'https://github.com/AnekTheGreat/Compass-EDC' }
+];
+
+function others(){
+  var rows = OTHERS.map(function(a){
+    return {
+      label: a.label,
+      sub: a.sub,
+      run: function(){ closeSheet(); native.openUrl(a.url); }
+    };
+  });
+  sheet('Other apps', {
+    rows: rows,
+    note: 'Four more, made the same way. Each opens its page in the browser; nothing is installed \n' +
+      'from here and nothing is downloaded.',
+    buttons: [{ label: 'Close', run: closeSheet }]
+  });
 }
 
 function tips(){
