@@ -11,28 +11,38 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-/** One published release: the version, where it can be read about and fetched, and what changed. */
-data class Update(val version: String, val url: String, val notes: String)
+/**
+ * One published release: the version, where it can be read about and fetched, what changed, and -
+ * when the release publishes one - the page the hub's screen is fetched from.
+ */
+data class Update(
+    val version: String,
+    val url: String,
+    val notes: String,
+    /** The release's `index.html`, when it carries one: a screen update, no installer involved. */
+    val page: String? = null
+)
 
 /**
- * OTA updates: read what the newest release is, compare it with the version this build carries,
- * and - only when that release is newer - take the owner to it.
+ * OTA updates: read what the newest release is, compare it with the page this build is drawing,
+ * and - only when that release is newer - offer it.
  *
  * This is the hub's ONLY use of the network, and it is why the app asks for INTERNET. Nothing is
  * uploaded; there is no account and no identifier, and no traffic at all unless there is a
  * release to look at.
  *
  * The answer comes from a small manifest published WITH the release, which is the same shape
- * SideCut, MeasureT and FamTM use: updates.json holding the version, the file, its size and the
- * notes for it. One fixed URL, no API, no tag parsing, and the changelog travels with the build
- * instead of being reconstructed on the phone. The GitHub API and the releases feed are kept as
- * fallbacks for a release that predates the manifest.
+ * SideCut, MeasureT and FamTM use: updates.json holding the version, the file, its size, the notes
+ * for it and - since the screen became a page - the page and its digest. One fixed URL, no API, no
+ * tag parsing, and the changelog travels with the build instead of being reconstructed on the
+ * phone. The GitHub API and the releases feed are kept as fallbacks for a release that predates
+ * the manifest.
  *
- * WHAT THE HUB DOES NOT DO ANY MORE: download the APK and install it. That needed
- * REQUEST_INSTALL_PACKAGES, and a sideloaded app that fetches code over the network and then asks
- * Android to install it is the shape Play Protect blocks - it read the hub as harmful because of
- * it. [browse] hands the release page to the browser instead, the APK downloads there, and the
- * phone's own installer takes it from outside the app. Same check, same notes, no installer.
+ * WHAT THE HUB DOES NOT DO: install anything. Downloading the APK and handing it to Android's
+ * installer needed REQUEST_INSTALL_PACKAGES, and a sideloaded app that fetches code over the
+ * network and then asks Android to install it is the shape Play Protect blocks - it read the hub as
+ * harmful because of it. An update to the screen is now a page, which needs no installer at all;
+ * when the APK itself is the newer thing, [browse] hands the release page to the browser.
  */
 object Updater {
 
@@ -77,6 +87,35 @@ object Updater {
         Thread { done(fetch()) }.start()
     }
 
+    /**
+     * A page, fetched whole. The hub's screen is a web page now, so this is what an ordinary update
+     * moves; [limit] keeps a wrong URL from filling the phone.
+     */
+    fun download(url: String, limit: Int = 4 * 1024 * 1024): ByteArray? = try {
+        val c = open(url)
+        if (c.responseCode != 200) {
+            Log.w(TAG, "page answered ${c.responseCode}")
+            null
+        } else {
+            val out = java.io.ByteArrayOutputStream()
+            val buffer = ByteArray(16 * 1024)
+            var total = 0
+            c.inputStream.use { input ->
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read <= 0) break
+                    total += read
+                    if (total > limit) break
+                    out.write(buffer, 0, read)
+                }
+            }
+            if (total == 0 || total > limit) null else out.toByteArray()
+        }
+    } catch (e: Exception) {
+        Log.w(TAG, "page unreachable: ${e.javaClass.simpleName}")
+        null
+    }
+
     private fun fetch(): Update? {
         val manifest = manifestJson()
         if (manifest != null) return fromManifest(manifest)
@@ -98,8 +137,9 @@ object Updater {
     }
 
     /**
-     * {"version":"1.8.4","apk":"MyHub-1.8.4.apk","size":647231,"notes":["..."],"date":""}
-     * - the same keys SideCut's ota/updates.json and MeasureT's updates.json carry.
+     * {"version":"1.9.0","apk":"MyHub-1.9.0.apk","size":...,"notes":["..."],"date":"",
+     *  "page":"index.html","page_url":"..."} - the same keys SideCut's ota/updates.json and
+     * MeasureT's updates.json carry, plus the page the release published.
      */
     private fun fromManifest(text: String): Update? = try {
         val j = JSONObject(text)
@@ -114,12 +154,17 @@ object Updater {
                 Log.w(TAG, "the manifest names no APK")
                 null
             }
-            !newer(v, BuildConfig.VERSION_NAME) -> null
+            !newer(v, BuildConfig.VERSION_NAME) && !newer(v, PageStore.running(appContext())) -> null
             else -> {
                 val notes = j.optJSONArray("notes")?.let { a ->
                     (0 until a.length()).joinToString("\n") { a.optString(it) }
                 } ?: ""
-                Update(v, "$DOWNLOADS/v$v/$apk", notes)
+                Update(
+                    v,
+                    "$DOWNLOADS/v$v/$apk",
+                    notes,
+                    j.optString("page_url").takeIf { it.isNotEmpty() }
+                )
             }
         }
     } catch (e: Exception) {
@@ -221,12 +266,26 @@ object Updater {
     }
 
     /**
+     * The application context, so the manifest can be measured against the page on the phone as
+     * well as against the APK that carries it. Set once by MainActivity, which is the only thing
+     * that has one.
+     */
+    private var context: Context? = null
+
+    fun attach(ctx: Context) {
+        if (context == null) context = ctx.applicationContext
+    }
+
+    private fun appContext(): Context = context ?: throw IllegalStateException("Updater not attached")
+
+    /**
      * True when this copy was installed by the Play Store.
      *
-     * A Play copy is updated by Play, so the hub must not offer it a download: store policy is that
-     * a Play-distributed app does not send its users to an APK, and the APK on the release page is
-     * signed with the upload key rather than the key Play delivers under - so it could not install
-     * over the store build anyway.
+     * A Play copy is updated by Play, so the hub must not offer it an APK download: store policy is
+     * that a Play-distributed app does not send its users to an APK, and the APK on the release page
+     * is signed with the upload key rather than the key Play delivers under - so it could not
+     * install over the store build anyway. The page is different: it is web content, not a package,
+     * and it updates here whether the build came from Play or from a file.
      */
     fun fromPlay(ctx: Context): Boolean = try {
         val pm = ctx.packageManager
@@ -266,13 +325,13 @@ object Updater {
     }
 
     /**
-     * Where the update is actually taken from: the release page, opened in the browser.
+     * Where a new build is taken from: the release page, opened in the browser.
      *
      * The hub used to fetch the APK into its own cache and hand it to Android's installer through a
-     * one-file ContentProvider. That is what made Play Protect read the app as harmful - downloading
-     * executable code and asking to install it is the dropper signature - and it is also the only
-     * reason the app ever asked for REQUEST_INSTALL_PACKAGES. Now the browser downloads the file and
-     * the phone's own installer, a different app with its own consent screen, installs it.
+     * one-file ContentProvider. That is what made Play Protect read the app as harmful, and it is
+     * also the only reason the app ever asked for REQUEST_INSTALL_PACKAGES. Now the browser
+     * downloads the file and the phone's own installer, a different app with its own consent
+     * screen, installs it.
      */
     fun browse(ctx: Context, update: Update) {
         // A Play copy is updated by Play itself, so there is no APK to open for it.
