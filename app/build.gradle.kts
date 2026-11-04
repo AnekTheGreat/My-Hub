@@ -13,16 +13,18 @@ val signingAlias: String = System.getenv("SIGNING_KEY_ALIAS") ?: "myhub"
 
 android {
     namespace = "com.myhub.app"
-    compileSdk = 34
+    // API 36 is not a preference: Google Play has refused an upload that targets less since
+    // 31 August 2026, and AGP 8.10 is the oldest plugin that can compile against it.
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.myhub.app"
         minSdk = 21
-        targetSdk = 34
+        targetSdk = 36
         // One source of truth: the name is written once and the code is computed from it, so the
         // APK on a phone, the APK CI builds and the release the updater reads can never disagree,
-        // and each release installs over the one before it - 1.8.4 -> 10804 over 1.8.3 -> 10803.
-        versionName = "1.8.4"
+        // and each release installs over the one before it - 1.8.5 -> 10805 over 1.8.4 -> 10804.
+        versionName = "1.8.5"
         versionCode = versionName!!.split(".").let { p ->
             p[0].toInt() * 10_000 + p[1].toInt() * 100 + p[2].toInt()
         }
