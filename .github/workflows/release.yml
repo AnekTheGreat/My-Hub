@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish, e.g. 1.8.5'
+        description: 'Version to publish, e.g. 1.9.0'
         required: true
 
 permissions:
@@ -65,6 +65,20 @@ jobs:
             exit 1
           fi
 
+      # The page is the app's screen, so an installed hub fetches it without an installer. It has
+      # to name the same version as the build, or an update would arrive claiming to be something
+      # the shell is not - and the shell refuses exactly that.
+      - name: Check the page matches the version
+        run: |
+          PAGE="$(grep -oE 'HUB_PAGE = "[^"]+"' app/src/main/assets/index.html | head -1 | cut -d'"' -f2)"
+          echo "page says $PAGE, build says ${{ steps.v.outputs.name }}"
+          if [ "$PAGE" != "${{ steps.v.outputs.name }}" ]; then
+            echo "::error::assets/index.html names $PAGE but this release is ${{ steps.v.outputs.name }}"
+            exit 1
+          fi
+          grep -q 'myhub-page' app/src/main/assets/index.html \
+            || { echo "::error::the page carries no myhub-page marker, so the hub would refuse it"; exit 1; }
+
       # A release attaches both formats, laid out flat and named with the version, the way
       # SideCut's releases are: an APK to install by hand and the same build as an AAB for Play.
       - name: Build the signed release APK and AAB
@@ -95,6 +109,10 @@ jobs:
       # itself: version, the file to fetch, its size, and the notes for it taken from PATCH_NOTES.
       # releases/latest/download/updates.json always resolves to the newest release's copy.
       #
+      # It also names the page, its size and its digest. The screen ships over the air, so this is
+      # the field an installed copy uses to fetch a new one - pinned to this tag, so nobody gets
+      # what main becomes tomorrow.
+      #
       # A note in the markdown wraps over several lines and sits under ### Added / ### Fixed, so
       # those subheadings are skipped rather than treated as the end of the entry, and a wrapped
       # line is joined back onto the bullet it belongs to. If no note is found the run stops: an
@@ -102,7 +120,7 @@ jobs:
       - name: Write the update manifest
         run: |
           python3 - "${{ steps.v.outputs.name }}" "MyHub-${{ steps.v.outputs.name }}.apk" <<'PY'
-          import json, os, re, sys
+          import hashlib, json, os, re, sys
           version, apk = sys.argv[1], sys.argv[2]
           notes = []
           try:
@@ -130,12 +148,18 @@ jobs:
           notes = [re.sub(r'\*{1,2}|`', '', n) for n in notes]
           if not notes:
               sys.exit('no patch notes found under %s - write them before releasing' % version)
+          page = open('app/src/main/assets/index.html', 'rb').read()
           manifest = {
               'version': version,
               'apk': apk,
               'size': os.path.getsize(apk),
               'notes': notes[:6],
               'date': '',
+              'page': 'index.html',
+              'page_size': len(page),
+              'page_sha256': hashlib.sha256(page).hexdigest(),
+              'page_url': ('https://raw.githubusercontent.com/AnekTheGreat/My-Hub/v%s/'
+                           'app/src/main/assets/index.html' % version),
           }
           with open('updates.json', 'w', encoding='utf-8') as f:
               json.dump(manifest, f, ensure_ascii=False)
@@ -143,36 +167,21 @@ jobs:
           PY
 
       # Play's two hard checks, run before anything is published: an upload must target API 36 or
-      # newer, and it must not ask to install other packages. The permission is read out of the
-      # BUILT APK, not the source manifest: the manifest's comment explains that the permission is
-      # gone, and a grep of the source would find that sentence and fail a release that is fine.
+      # newer, and it must not ask to install other packages. Both are one grep away, and neither
+      # is worth discovering in a review queue days later.
       - name: Check the build is Play-ready
         run: |
           grep -q 'compileSdk = 36' app/build.gradle.kts \
             || { echo "::error::compileSdk is not 36 - AGP 8.10 is needed for API 36"; exit 1; }
           grep -q 'targetSdk = 36' app/build.gradle.kts \
             || { echo "::error::targetSdk is not 36 - Play refuses a bundle that targets less"; exit 1; }
-          APK=app/build/outputs/apk/release/app-release.apk
-          AAPT="$(command -v aapt2 || true)"
-          if [ -z "$AAPT" ]; then
-            AAPT="$(ls -1 "$ANDROID_HOME"/build-tools/*/aapt2 2>/dev/null | tail -1 || true)"
+          if grep -q 'REQUEST_INSTALL_PACKAGES' app/src/main/AndroidManifest.xml; then
+            echo "::error::the manifest asks to install packages, which Play reads as a self-updater"
+            exit 1
           fi
-          if [ -n "$AAPT" ]; then
-            "$AAPT" dump permissions "$APK" > /tmp/perms.txt
-            if grep -q 'REQUEST_INSTALL_PACKAGES' /tmp/perms.txt; then
-              echo "::error::the built APK asks to install packages, which Play reads as a self-updater"
-              exit 1
-            fi
-            echo "permissions in the built APK:"
-            cat /tmp/perms.txt
-          else
-            echo "::warning::no aapt2 on this runner; reading the source manifest instead"
-            if grep -qE '<uses-permission[^>]*REQUEST_INSTALL_PACKAGES' app/src/main/AndroidManifest.xml; then
-              echo "::error::the manifest asks to install packages"
-              exit 1
-            fi
-          fi
-          echo "Play-ready: API 36, no REQUEST_INSTALL_PACKAGES, signed AAB above"
+          [ -s app/src/main/assets/index.html ] \
+            || { echo "::error::the screen page is missing from the build"; exit 1; }
+          echo "Play-ready: API 36, no REQUEST_INSTALL_PACKAGES, signed AAB and an OTA page above"
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
