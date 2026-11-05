@@ -1,8 +1,8 @@
 name: Apply the queued patch
 
 # One-shot maintenance run: applies a patch committed beside it, then removes the patch and commits
-the result. It exists so a several-file change can be reviewed as one diff instead of being retyped
-in full, and it does nothing at all on a schedule or a push - only a manual dispatch.
+# the result. It exists so a several-file change can be reviewed as one diff instead of being
+# retyped in full, and it does nothing on a schedule or a push - only a manual dispatch.
 
 on:
   workflow_dispatch:
