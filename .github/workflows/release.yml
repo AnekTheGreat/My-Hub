@@ -160,6 +160,11 @@ jobs:
               'page_sha256': hashlib.sha256(page).hexdigest(),
               'page_url': ('https://raw.githubusercontent.com/AnekTheGreat/My-Hub/v%s/'
                            'app/src/main/assets/index.html' % version),
+              # Read out of the page being published, not copied from `version`. The hub compares
+              # page to page, so a release that republishes an unchanged screen must not claim a
+              # newer one, and a page that moves on its own must declare it.
+              'page_version': re.search(r'HUB_PAGE\s*=\s*["\']([0-9][^"\']*)["\']',
+                                        page.decode('utf-8')).group(1),
           }
           with open('updates.json', 'w', encoding='utf-8') as f:
               json.dump(manifest, f, ensure_ascii=False)

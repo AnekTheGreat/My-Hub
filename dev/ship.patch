@@ -1,0 +1,363 @@
+diff --git a/PATCH_NOTES.md b/PATCH_NOTES.md
+index 8150bff..b56cceb 100644
+--- a/PATCH_NOTES.md
++++ b/PATCH_NOTES.md
+@@ -4,6 +4,23 @@ What changed in each release, newest first. Everything here ships as a signed AP
+ the same build as an AAB for Play Console, made by
+ [release.yml](.github/workflows/release.yml) on a `v*` tag.
+ 
++## 1.10.2 - no more asking for an update you already have
++
++### Fixed
++- **The update prompt stops nagging.** The hub was comparing the newest release's number against
++  the version of the *screen*, which is a different clock: any release whose number had moved on
++  while the screen had not asked again on every launch, and accepting it changed nothing, so it
++  asked again next time. A screen update is now measured screen to screen, the release that
++  publishes the page says which version the page names, and an offer already made is remembered so
++  a launch cannot repeat it. Check for updates still answers every time you press it.
++
++### New
++- **A screen with a little more life in it.** It greets you by the time of day and says how many
++  apps are ready; the time total counts up instead of appearing; a card springs under your finger
++  and slides away as it opens; putting an app in a slot throws a little confetti from the card; and
++  the backdrop drifts slowly instead of sitting still. All of it is off when the phone asks for
++  reduced motion.
++
+ ## 1.10.1 - the other apps open their Play listings
+ 
+ ### Changed
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index 7408639..b6f09ec 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -26,7 +26,7 @@ android {
+         // and each release installs over the one before it - 1.10.1 -> 11001 over 1.10.0 -> 11000.
+         // The screen ships separately, as a page, and release.yml refuses a release whose page
+         // names any other version than this one.
+-        versionName = "1.10.1"
++        versionName = "1.10.2"
+         versionCode = versionName!!.split(".").let { p ->
+             p[0].toInt() * 10_000 + p[1].toInt() * 100 + p[2].toInt()
+         }
+diff --git a/app/src/main/assets/index.html b/app/src/main/assets/index.html
+index bb08bf2..0c1b317 100644
+--- a/app/src/main/assets/index.html
++++ b/app/src/main/assets/index.html
+@@ -70,6 +70,24 @@ footer{flex:0 0 auto;text-align:center;color:var(--chevron);font-size:11px;paddi
+   color:var(--ink);font-size:13px;padding:11px 16px;border-radius:14px;opacity:0;
+   pointer-events:none;transition:opacity .18s;z-index:40;max-width:88vw;text-align:center}
+ #toast.show{opacity:1}
++
++/* ---- a little life ---- */
++#aurora{position:fixed;inset:-20%;pointer-events:none;z-index:-1;
++  background:radial-gradient(38% 32% at 22% 18%,rgba(99,198,166,.16),transparent 70%),
++             radial-gradient(34% 30% at 82% 78%,rgba(127,179,240,.14),transparent 70%);
++  animation:drift 42s ease-in-out infinite}
++@keyframes drift{0%,100%{transform:translate3d(0,0,0) scale(1)}
++                 50%{transform:translate3d(2.5%,3%,0) scale(1.06)}}
++#hello{padding:0 22px 2px;font-size:13.5px;min-height:18px;color:var(--mute,inherit);opacity:.9}
++#hello b{color:var(--ink,inherit);font-weight:600}
++.card{transition:background .15s,border-color .15s,transform .16s cubic-bezier(.2,.9,.3,1.5),opacity .2s}
++.card.pressed{transform:scale(.975)}
++.card.launch{animation:launch .3s cubic-bezier(.3,.8,.3,1) forwards}
++@keyframes launch{to{transform:translateX(24px) scale(.95);opacity:0}}
++.spark{position:fixed;width:7px;height:7px;border-radius:2px;z-index:61;pointer-events:none}
++@media (prefers-reduced-motion:reduce){
++  #aurora,.card,.card.pressed,.card.launch,.spark{animation:none!important;transition:none!important}
++}
+ </style>
+ </head>
+ <body>
+@@ -79,6 +97,7 @@ footer{flex:0 0 auto;text-align:center;color:var(--chevron);font-size:11px;paddi
+     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9.4 4c0 .44-.04.87-.11 1.29l2.06 1.56-2 3.42-2.4-1a7.5 7.5 0 0 1-2.2 1.28l-.33 2.55h-3.94l-.33-2.55a7.5 7.5 0 0 1-2.2-1.28l-2.4 1-2-3.42 2.06-1.56a7.6 7.6 0 0 1 0-2.58L1.55 9.15l2-3.42 2.4 1a7.5 7.5 0 0 1 2.2-1.28l.33-2.55h3.94l.33 2.55a7.5 7.5 0 0 1 2.2 1.28l2.4-1 2 3.42-2.06 1.56c.07.42.11.85.11 1.29z"/></svg>
+   </button>
+ </header>
++<div id="hello"></div>
+ <div id="summary"></div>
+ <main id="list"></main>
+ <footer>Hold a card to change its app</footer>
+@@ -88,7 +107,7 @@ footer{flex:0 0 auto;text-align:center;color:var(--chevron);font-size:11px;paddi
+ <script>
+ /* The screen My Hub draws. The version here is compared with the release's before a page update is
+    applied, and release.yml refuses to publish unless it matches the version in build.gradle.kts. */
+-var HUB_PAGE = "1.10.1";
++var HUB_PAGE = "1.10.2";
+ 
+ var native = window.Hub || null;
+ var S = null;
+@@ -153,6 +172,9 @@ function render(){
+   if (S.missing > 0) sum = S.missing + ' of ' + S.presets + ' apps still need to be added';
+   else if (S.tracked > 0) sum = human(S.tracked) + ' across your apps';
+   $('#summary').textContent = sum;
++  if (S.missing <= 0 && S.tracked > 0) countTo(S.tracked);
++  else countShown = 0;
++  hello();
+   bindCards();
+ }
+ 
+@@ -259,6 +281,12 @@ function toast(message){
+ /* ---- what a card does ---- */
+ 
+ function openCard(c){
++  // The card leaves in the direction it was going. The app opens underneath the animation, so
++  // nothing waits on it, and reduced motion skips straight to the launch.
++  try{
++    var el = document.querySelector('.card[data-id="' + c.id + '"]');
++    if (el && !calm()) el.classList.add('launch');
++  }catch (e){}
+   var r = json(native.open(c.id));
+   if (r && r.ok === false) toast(r.message || 'Could not start that app');
+ }
+@@ -316,6 +344,7 @@ function picker(id){
+       run: function(){
+         native.bind(id, a.pkg);
+         closeSheet(); render();
++        celebrate(document.querySelector('.card[data-id="' + id + '"]'));
+         toast(c.title + ' \u2192 ' + a.label);
+       }
+     };
+@@ -441,6 +470,88 @@ function about(){
+   });
+ }
+ 
++/* ---- a little life ---- */
++
++var countShown = 0;
++
++function calm(){
++  return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
++}
++
++function greeting(){
++  var h = new Date().getHours();
++  if (h < 5) return 'Still awake';
++  if (h < 12) return 'Good morning';
++  if (h < 17) return 'Good afternoon';
++  if (h < 22) return 'Good evening';
++  return 'Late night';
++}
++
++function hello(){
++  var el = document.getElementById('hello');
++  if (!el || !S || !S.cards) return;
++  var n = S.cards.filter(function(c){ return !!c.pkg; }).length;
++  el.innerHTML = greeting() + (n ? ', <b>' + n + '</b> ' + (n === 1 ? 'app' : 'apps') + ' ready' : '');
++}
++
++/* The total arrives by counting, so a fresh number reads as a change rather than a fact. */
++function countTo(ms){
++  var el = document.getElementById('summary');
++  if (!el || !(ms > 0)) return;
++  if (calm()){ el.textContent = human(ms) + ' across your apps'; countShown = ms; return; }
++  var from = countShown, to = ms, t0 = Date.now();
++  countShown = to;
++  (function step(){
++    var k = Math.min(1, (Date.now() - t0) / 700);
++    var eased = 1 - Math.pow(1 - k, 3);
++    el.textContent = human(Math.round(from + (to - from) * eased)) + ' across your apps';
++    if (k < 1) requestAnimationFrame(step);
++  })();
++}
++
++function burst(x, y){
++  if (calm()) return;
++  var host = document.getElementById('burst');
++  if (!host){
++    host = document.createElement('div');
++    host.id = 'burst';
++    document.body.appendChild(host);
++  }
++  var colors = ['#63C6A6', '#7FB3F0', '#F2C14E', '#E88AA8', '#B49BF2'];
++  // `let`, because each spark's finish clears its OWN element: with `var` every callback would
++  // close over the last one and leave the rest of the confetti in the document for ever.
++  for (let i = 0; i < 16; i++){
++    let spark = document.createElement('i');
++    spark.className = 'spark';
++    spark.style.background = colors[i % colors.length];
++    spark.style.left = (x || window.innerWidth / 2) + 'px';
++    spark.style.top = (y || window.innerHeight / 2) + 'px';
++    host.appendChild(spark);
++    let ang = Math.PI * 2 * i / 16 + Math.random() * 0.5;
++    let dist = 46 + Math.random() * 64;
++    spark.animate([
++      { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
++      { transform: 'translate(' + (Math.cos(ang) * dist - 4).toFixed(1) + 'px,' +
++                     (Math.sin(ang) * dist - 4).toFixed(1) + 'px) scale(.2)', opacity: 0 }
++    ], { duration: 560 + Math.random() * 240, easing: 'cubic-bezier(.2,.7,.3,1)' })
++      .onfinish = function(){ spark.remove(); };
++  }
++}
++
++function celebrate(el){
++  try{
++    var r = el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
++    burst(r ? r.left + r.width / 2 : null, r ? r.top + r.height / 2 : null);
++  }catch (e){}
++}
++
++(function aurora(){
++  if (!document.body || document.getElementById('aurora')) return;
++  var el = document.createElement('div');
++  el.id = 'aurora';
++  document.body.insertBefore(el, document.body.firstChild);
++})();
++
+ /* ---- updates, asked for by the shell ---- */
+ 
+ window.hubUpdate = function(payload){
+diff --git a/app/src/main/java/com/myhub/app/MainActivity.kt b/app/src/main/java/com/myhub/app/MainActivity.kt
+index f04ff4a..e717e8f 100644
+--- a/app/src/main/java/com/myhub/app/MainActivity.kt
++++ b/app/src/main/java/com/myhub/app/MainActivity.kt
+@@ -172,23 +172,49 @@ class MainActivity : Activity() {
+         Updater.check { update -> runOnUiThread { offered(update, silent) } }
+     }
+ 
++    /**
++     * THE TWO CLOCKS, KEPT APART.
++     *
++     * This compared the RELEASE's version against the running PAGE's version, so any release whose
++     * number was ahead of the page - every release that shipped a shell change and republished the
++     * same screen, and every release older than the page field - asked for a download the phone had
++     * already taken, on every launch. A release is "newer" as an app, and a page is "newer" as a
++     * page; they are measured against their own kind now, and only when the manifest actually
++     * names the page's version does a screen update get offered.
++     *
++     * And an offer is remembered. A silent check that has already spoken about a version stays
++     * quiet on the next launch instead of interrupting again; Check for updates (silent = false)
++     * still answers every time it is pressed, because that is someone asking.
++     */
+     private fun offered(update: Update?, silent: Boolean) {
+-        val page = PageStore.running(this)
+-        if (update != null && update.page != null && Updater.newer(update.version, page)) {
+-            eval("hubUpdate(" + offer(update, "page") + ")")
++        val runningPage = PageStore.running(this)
++        val pageTarget = update?.pageVersion?.takeIf { update.page != null }
++        if (update != null && pageTarget != null && Updater.newer(pageTarget, runningPage)) {
++            show(update, "page", pageTarget, silent)
+             return
+         }
+         if (update != null && !Updater.fromPlay(this) &&
+             Updater.newer(update.version, BuildConfig.VERSION_NAME)
+         ) {
+-            eval("hubUpdate(" + offer(update, "app") + ")")
++            show(update, "app", update.version, silent)
+             return
+         }
+-        if (!silent) eval("hubToast(" + JSONObject.quote("My Hub $page is the newest there is") + ")")
++        if (!silent) {
++            eval("hubToast(" + JSONObject.quote("My Hub $runningPage is the newest there is") + ")")
++        }
++    }
++
++    /** One offer per version per install: a launch cannot repeat what a launch already said. */
++    private fun show(update: Update, kind: String, version: String, silent: Boolean) {
++        val key = kind + ":" + version
++        val prefs = getSharedPreferences("updates", MODE_PRIVATE)
++        if (silent && prefs.getString("last_offered", "") == key) return
++        prefs.edit().putString("last_offered", key).apply()
++        eval("hubUpdate(" + offer(update, kind, version) + ")")
+     }
+ 
+     /** What the update sheet is given: what changed, and where the new page or release comes from. */
+-    private fun offer(update: Update, kind: String): String {
++    private fun offer(update: Update, kind: String, version: String): String {
+         val notes = JSONArray()
+         update.notes.lines()
+             .map { it.trim().removePrefix("-").trim() }
+@@ -197,7 +223,10 @@ class MainActivity : Activity() {
+             .forEach { notes.put(it) }
+         return JSONObject()
+             .put("kind", kind)
+-            .put("version", update.version)
++            // For a screen update this is the PAGE's version, which is what the sheet shows and
++            // what the fetched file has to name before PageStore will accept it.
++            .put("version", version)
++            .put("app", update.version)
+             .put("notes", notes)
+             .put("url", if (kind == "page") update.page ?: "" else releasePage(update))
+             .toString()
+diff --git a/app/src/main/java/com/myhub/app/Updater.kt b/app/src/main/java/com/myhub/app/Updater.kt
+index 673dc80..5200645 100644
+--- a/app/src/main/java/com/myhub/app/Updater.kt
++++ b/app/src/main/java/com/myhub/app/Updater.kt
+@@ -20,7 +20,18 @@ data class Update(
+     val url: String,
+     val notes: String,
+     /** The release's `index.html`, when it carries one: a screen update, no installer involved. */
+-    val page: String? = null
++    val page: String? = null,
++    /**
++     * The version the PAGE names - `HUB_PAGE` in the file at [page] - never the release's own
++     * number.
++     *
++     * They are two different clocks. A release can republish the screen without changing the
++     * shell, and the shell can change without the screen moving; comparing the release's version
++     * against the page's is what made a current hub ask its owner to download an update they had
++     * already taken, every single launch. Null means the manifest predates this field, and then
++     * only the shell is offered (see MainActivity.offered).
++     */
++    val pageVersion: String? = null
+ )
+ 
+ /**
+@@ -137,9 +148,10 @@ object Updater {
+     }
+ 
+     /**
+-     * {"version":"1.9.0","apk":"MyHub-1.9.0.apk","size":...,"notes":["..."],"date":"",
+-     *  "page":"index.html","page_url":"..."} - the same keys SideCut's ota/updates.json and
+-     * MeasureT's updates.json carry, plus the page the release published.
++     * {"version":"1.10.2","apk":"MyHub-1.10.2.apk","size":...,"notes":["..."],"date":"",
++     *  "page":"index.html","page_url":"...","page_version":"1.10.2"} - the same keys SideCut's
++     * ota/updates.json and MeasureT's updates.json carry, plus the page the release published and
++     * the version that page names.
+      */
+     private fun fromManifest(text: String): Update? = try {
+         val j = JSONObject(text)
+@@ -154,7 +166,10 @@ object Updater {
+                 Log.w(TAG, "the manifest names no APK")
+                 null
+             }
+-            !newer(v, BuildConfig.VERSION_NAME) -> null
++            // NOT `if the release is newer than this app`: a release that republishes the screen
++            // is newer than the page without being newer than the shell, and answering null here
++            // threw that away before anyone could look at it. The decision belongs in offered(),
++            // which can see both clocks.
+             else -> {
+                 val notes = j.optJSONArray("notes")?.let { a ->
+                     (0 until a.length()).joinToString("\n") { a.optString(it) }
+@@ -163,7 +178,8 @@ object Updater {
+                     v,
+                     "$DOWNLOADS/v$v/$apk",
+                     notes,
+-                    j.optString("page_url").takeIf { it.isNotEmpty() }
++                    j.optString("page_url").takeIf { it.isNotEmpty() },
++                    j.optString("page_version").takeIf { it.isNotEmpty() }
+                 )
+             }
+         }
+@@ -199,7 +215,8 @@ object Updater {
+                 Log.w(TAG, "release $tag has no APK attached")
+                 null
+             }
+-            !newer(tag, BuildConfig.VERSION_NAME) -> null
++            // The API knows nothing about the page, so this can only ever offer the shell. It is
++            // still handed back when it is not newer: offered() is where that is judged, once.
+             else -> Update(tag, apk, j.optString("body", ""))
+         }
+     } catch (e: Exception) {
+@@ -240,12 +257,7 @@ object Updater {
+                 null
+             } else {
+                 val v = tag.removePrefix("v")
+-                if (!newer(v, BuildConfig.VERSION_NAME)) null
+-                else Update(
+-                    v,
+-                    "$DOWNLOADS/$tag/MyHub-$v.apk",
+-                    "Published on GitHub."
+-                )
++                Update(v, "$DOWNLOADS/$tag/MyHub-$v.apk", "Published on GitHub.")
+             }
+         }
+     } catch (e: Exception) {
