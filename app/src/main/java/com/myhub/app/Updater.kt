@@ -20,7 +20,18 @@ data class Update(
     val url: String,
     val notes: String,
     /** The release's `index.html`, when it carries one: a screen update, no installer involved. */
-    val page: String? = null
+    val page: String? = null,
+    /**
+     * The version the PAGE names - `HUB_PAGE` in the file at [page] - never the release's own
+     * number.
+     *
+     * They are two different clocks. A release can republish the screen without changing the
+     * shell, and the shell can change without the screen moving; comparing the release's version
+     * against the page's is what made a current hub ask its owner to download an update they had
+     * already taken, every single launch. Null means the manifest predates this field, and then
+     * only the shell is offered (see MainActivity.offered).
+     */
+    val pageVersion: String? = null
 )
 
 /**
@@ -137,9 +148,10 @@ object Updater {
     }
 
     /**
-     * {"version":"1.9.0","apk":"MyHub-1.9.0.apk","size":...,"notes":["..."],"date":"",
-     *  "page":"index.html","page_url":"..."} - the same keys SideCut's ota/updates.json and
-     * MeasureT's updates.json carry, plus the page the release published.
+     * {"version":"1.10.2","apk":"MyHub-1.10.2.apk","size":...,"notes":["..."],"date":"",
+     *  "page":"index.html","page_url":"...","page_version":"1.10.2"} - the same keys SideCut's
+     * ota/updates.json and MeasureT's updates.json carry, plus the page the release published and
+     * the version that page names.
      */
     private fun fromManifest(text: String): Update? = try {
         val j = JSONObject(text)
@@ -154,7 +166,10 @@ object Updater {
                 Log.w(TAG, "the manifest names no APK")
                 null
             }
-            !newer(v, BuildConfig.VERSION_NAME) -> null
+            // NOT `if the release is newer than this app`: a release that republishes the screen
+            // is newer than the page without being newer than the shell, and answering null here
+            // threw that away before anyone could look at it. The decision belongs in offered(),
+            // which can see both clocks.
             else -> {
                 val notes = j.optJSONArray("notes")?.let { a ->
                     (0 until a.length()).joinToString("\n") { a.optString(it) }
@@ -163,7 +178,8 @@ object Updater {
                     v,
                     "$DOWNLOADS/v$v/$apk",
                     notes,
-                    j.optString("page_url").takeIf { it.isNotEmpty() }
+                    j.optString("page_url").takeIf { it.isNotEmpty() },
+                    j.optString("page_version").takeIf { it.isNotEmpty() }
                 )
             }
         }
@@ -199,7 +215,8 @@ object Updater {
                 Log.w(TAG, "release $tag has no APK attached")
                 null
             }
-            !newer(tag, BuildConfig.VERSION_NAME) -> null
+            // The API knows nothing about the page, so this can only ever offer the shell. It is
+            // still handed back when it is not newer: offered() is where that is judged, once.
             else -> Update(tag, apk, j.optString("body", ""))
         }
     } catch (e: Exception) {
@@ -240,12 +257,7 @@ object Updater {
                 null
             } else {
                 val v = tag.removePrefix("v")
-                if (!newer(v, BuildConfig.VERSION_NAME)) null
-                else Update(
-                    v,
-                    "$DOWNLOADS/$tag/MyHub-$v.apk",
-                    "Published on GitHub."
-                )
+                Update(v, "$DOWNLOADS/$tag/MyHub-$v.apk", "Published on GitHub.")
             }
         }
     } catch (e: Exception) {

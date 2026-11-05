@@ -172,23 +172,49 @@ class MainActivity : Activity() {
         Updater.check { update -> runOnUiThread { offered(update, silent) } }
     }
 
+    /**
+     * THE TWO CLOCKS, KEPT APART.
+     *
+     * This compared the RELEASE's version against the running PAGE's version, so any release whose
+     * number was ahead of the page - every release that shipped a shell change and republished the
+     * same screen, and every release older than the page field - asked for a download the phone had
+     * already taken, on every launch. A release is "newer" as an app, and a page is "newer" as a
+     * page; they are measured against their own kind now, and only when the manifest actually
+     * names the page's version does a screen update get offered.
+     *
+     * And an offer is remembered. A silent check that has already spoken about a version stays
+     * quiet on the next launch instead of interrupting again; Check for updates (silent = false)
+     * still answers every time it is pressed, because that is someone asking.
+     */
     private fun offered(update: Update?, silent: Boolean) {
-        val page = PageStore.running(this)
-        if (update != null && update.page != null && Updater.newer(update.version, page)) {
-            eval("hubUpdate(" + offer(update, "page") + ")")
+        val runningPage = PageStore.running(this)
+        val pageTarget = update?.pageVersion?.takeIf { update.page != null }
+        if (update != null && pageTarget != null && Updater.newer(pageTarget, runningPage)) {
+            show(update, "page", pageTarget, silent)
             return
         }
         if (update != null && !Updater.fromPlay(this) &&
             Updater.newer(update.version, BuildConfig.VERSION_NAME)
         ) {
-            eval("hubUpdate(" + offer(update, "app") + ")")
+            show(update, "app", update.version, silent)
             return
         }
-        if (!silent) eval("hubToast(" + JSONObject.quote("My Hub $page is the newest there is") + ")")
+        if (!silent) {
+            eval("hubToast(" + JSONObject.quote("My Hub $runningPage is the newest there is") + ")")
+        }
+    }
+
+    /** One offer per version per install: a launch cannot repeat what a launch already said. */
+    private fun show(update: Update, kind: String, version: String, silent: Boolean) {
+        val key = kind + ":" + version
+        val prefs = getSharedPreferences("updates", MODE_PRIVATE)
+        if (silent && prefs.getString("last_offered", "") == key) return
+        prefs.edit().putString("last_offered", key).apply()
+        eval("hubUpdate(" + offer(update, kind, version) + ")")
     }
 
     /** What the update sheet is given: what changed, and where the new page or release comes from. */
-    private fun offer(update: Update, kind: String): String {
+    private fun offer(update: Update, kind: String, version: String): String {
         val notes = JSONArray()
         update.notes.lines()
             .map { it.trim().removePrefix("-").trim() }
@@ -197,7 +223,10 @@ class MainActivity : Activity() {
             .forEach { notes.put(it) }
         return JSONObject()
             .put("kind", kind)
-            .put("version", update.version)
+            // For a screen update this is the PAGE's version, which is what the sheet shows and
+            // what the fetched file has to name before PageStore will accept it.
+            .put("version", version)
+            .put("app", update.version)
             .put("notes", notes)
             .put("url", if (kind == "page") update.page ?: "" else releasePage(update))
             .toString()

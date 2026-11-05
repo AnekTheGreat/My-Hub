@@ -4,6 +4,23 @@ What changed in each release, newest first. Everything here ships as a signed AP
 the same build as an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag.
 
+## 1.10.2 - no more asking for an update you already have
+
+### Fixed
+- **The update prompt stops nagging.** The hub was comparing the newest release's number against
+  the version of the *screen*, which is a different clock: any release whose number had moved on
+  while the screen had not asked again on every launch, and accepting it changed nothing, so it
+  asked again next time. A screen update is now measured screen to screen, the release that
+  publishes the page says which version the page names, and an offer already made is remembered so
+  a launch cannot repeat it. Check for updates still answers every time you press it.
+
+### New
+- **A screen with a little more life in it.** It greets you by the time of day and says how many
+  apps are ready; the time total counts up instead of appearing; a card springs under your finger
+  and slides away as it opens; putting an app in a slot throws a little confetti from the card; and
+  the backdrop drifts slowly instead of sitting still. All of it is off when the phone asks for
+  reduced motion.
+
 ## 1.10.1 - the other apps open their Play listings
 
 ### Changed

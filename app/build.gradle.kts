@@ -26,7 +26,7 @@ android {
         // and each release installs over the one before it - 1.10.1 -> 11001 over 1.10.0 -> 11000.
         // The screen ships separately, as a page, and release.yml refuses a release whose page
         // names any other version than this one.
-        versionName = "1.10.1"
+        versionName = "1.10.2"
         versionCode = versionName!!.split(".").let { p ->
             p[0].toInt() * 10_000 + p[1].toInt() * 100 + p[2].toInt()
         }
