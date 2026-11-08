@@ -6,9 +6,11 @@ said "Compass EDC" for an app that is called MeasureT everywhere else, and it se
 rows to Play listings that do not exist yet - four of the five packages answer with Play's own
 not-found page, and only SideCut's is live.
 
-1.10.5 makes this list the list the whole family will carry: FamTM, SideCut, MeasureT, UJournal and
-UNote, each with one line, each at an address that answers today. SideCut opens its Play listing.
-FamTM and UJournal open the release they install from, MeasureT and UNote open their own page.
+1.10.5 makes this list the list the whole family carries: FamTM, SideCut, MeasureT, UJournal and
+UNote, each with one line, each at an address that answers today.
+
+--check says whether the tree ALREADY carries the change, which is what the apply workflow asks it
+before deciding there is nothing to do.
 
     python3 dev/patch-1105.py            # apply
     python3 dev/patch-1105.py --check    # verify only, writes nothing
@@ -134,8 +136,9 @@ def main():
         sys.exit("; ".join(bad))
 
     if check:
+        if touched:
+            sys.exit("the tree does not carry %s yet (%s)" % (V, ", ".join(touched)))
         print("all %d checks pass - the tree carries %s" % (len(probes), V))
-        print("untouched this run" if not touched else "applied: " + ", ".join(touched))
         return
 
     write(PAGE, page)
