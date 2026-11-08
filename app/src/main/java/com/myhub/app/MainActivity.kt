@@ -15,6 +15,10 @@ import android.widget.FrameLayout
 import android.widget.Toast
 import org.json.JSONArray
 import org.json.JSONObject
+import android.app.DownloadManager
+import android.content.Context
+import android.os.Environment
+import android.util.Log
 
 // The palette lives with the page now, and these two are only what shows while it loads and the
 // strips behind the system bars: the same navy of OnePlus Game Space.
@@ -190,7 +194,12 @@ class MainActivity : Activity() {
         val runningPage = PageStore.running(this)
         val pageTarget = update?.pageVersion?.takeIf { update.page != null }
         if (update != null && pageTarget != null && Updater.newer(pageTarget, runningPage)) {
-            show(update, "page", pageTarget, silent)
+            // The screen is one file in the app's own storage, and the shell already refuses one
+            // that does not name the version it asked for, so this needs no sheet and no
+            // permission: fetch it, put it in place, say so. The worst a bad fetch does is leave
+            // the old screen running.
+            applyPage(update.page!!, pageTarget)
+            eval("hubToast(" + JSONObject.quote("Screen updated to " + pageTarget) + ")")
             return
         }
         if (update != null && !Updater.fromPlay(this) &&
@@ -228,18 +237,54 @@ class MainActivity : Activity() {
             .put("version", version)
             .put("app", update.version)
             .put("notes", notes)
-            .put("url", if (kind == "page") update.page ?: "" else releasePage(update))
+            .put("url", if (kind == "page") update.page ?: "" else apkUrl(update))
             .toString()
     }
 
-    /** The release page, which carries the APK and the notes beside it. */
-    private fun releasePage(update: Update) =
-        "https://github.com/AnekTheGreat/My-Hub/releases/tag/v${update.version}"
+    /** The release's own APK, named the way release.yml names it. No page in between. */
+    private fun apkUrl(update: Update) =
+        "https://github.com/AnekTheGreat/My-Hub/releases/download/v${update.version}/MyHub-${update.version}.apk"
 
     /**
      * Fetch the page a release published and put it in place. Nothing is installed and no package
      * is touched: this writes one file into the app's own storage and loads it.
      */
+    /**
+     * The app itself, fetched into the phone's downloads folder and left there.
+     *
+     * The hub still does not install a package: Play reads a sideloaded app that downloads code and
+     * then asks to install it as a dropper, whatever it means to do, and 1.8.4 removed the permission
+     * for exactly that. What is gone with 1.10.4 is the browser: DownloadManager takes the file to
+     * the phone's own downloads, the finished file says so in the notification bar, and the phone's
+     * installer takes it from there. One tap, the release's own APK, no page in between.
+     */
+    fun downloadBuild(url: String, version: String) {
+        Thread {
+            val started = try {
+                val request = DownloadManager.Request(Uri.parse(url))
+                    .setTitle("My Hub " + version)
+                    .setDescription("Tap when it has finished to install")
+                    .setMimeType("application/vnd.android.package-archive")
+                    .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                    .setDestinationInExternalPublicDir(
+                        Environment.DIRECTORY_DOWNLOADS, "MyHub-" + version + ".apk"
+                    )
+                val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                dm.enqueue(request)
+                true
+            } catch (e: Exception) {
+                Log.w("MyHub", "the download could not start", e)
+                false
+            }
+            runOnUiThread {
+                toast(
+                    if (started) "Downloading My Hub " + version + " - the finished file asks to install"
+                    else "That download could not start"
+                )
+            }
+        }.start()
+    }
+
     fun applyPage(url: String, version: String) {
         Thread {
             val bytes = Updater.download(url)

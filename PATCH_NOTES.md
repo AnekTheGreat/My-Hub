@@ -4,6 +4,16 @@ What changed in each release, newest first. Everything here ships as a signed AP
 the same build as an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag.
 
+## 1.10.4 - it updates itself, and never sends you to a web page
+
+### Changed
+- **No more web page.** The update used to open GitHub in the browser. Now the new build downloads
+  straight to your downloads folder and asks to install when it has finished - one tap, in place,
+  and nothing to read in a browser first.
+- **The screen updates by itself.** A new screen arrives on launch with nothing to press: no sheet,
+  no notes to get through, just a quiet "Screen updated" when it is done.
+- **The sheet is only about the app now**, and it still says each version once.
+
 ## 1.10.3 - UNote joins the list, and opens from it
 
 ### New

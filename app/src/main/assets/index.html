@@ -107,7 +107,7 @@ footer{flex:0 0 auto;text-align:center;color:var(--chevron);font-size:11px;paddi
 <script>
 /* The screen My Hub draws. The version here is compared with the release's before a page update is
    applied, and release.yml refuses to publish unless it matches the version in build.gradle.kts. */
-var HUB_PAGE = "1.10.3";
+var HUB_PAGE = "1.10.4";
 
 var native = window.Hub || null;
 var S = null;
@@ -567,20 +567,18 @@ window.hubUpdate = function(payload){
   var tail = isPage
     ? 'The screen updates in place. Nothing is installed, Google Play is not involved, and the ' +
       'app itself stays exactly as it is.'
-    : 'The release opens in your browser: the APK downloads there and your phone\'s own ' +
-      'installer takes it from outside the hub. My Hub does not download or install a package ' +
-      'itself.';
+    : 'The new build downloads here, into your downloads folder, and asks to install when it has finished. Nothing opens in a browser.';
   sheet(isPage ? 'My Hub ' + u.version + ' is ready' : 'My Hub ' + u.version + ' is out', {
     note: 'You have ' + now + '.\n\n' + (notes ? notes + '\n\n' : '') + tail,
     buttons: [
       { label: 'Later', run: closeSheet },
       {
-        label: isPage ? 'Update now' : 'Open the release',
+        label: isPage ? 'Update now' : 'Download it',
         primary: true,
         run: function(){
           closeSheet();
           if (isPage){ toast('Updating\u2026'); native.updateNow(u.url, u.version); }
-          else native.openUrl(u.url);
+          else { toast('Downloading...'); native.downloadBuild(u.url, u.version); }
         }
       }
     ]

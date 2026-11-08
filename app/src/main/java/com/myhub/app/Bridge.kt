@@ -174,6 +174,13 @@ class Bridge(private val activity: MainActivity) {
         activity.applyPage(url, version)
     }
 
+    /** The app's own update: the release's APK into the phone's downloads, never a browser. */
+    @JavascriptInterface
+    fun downloadBuild(url: String, version: String) {
+        if (!url.startsWith("https://")) return
+        activity.downloadBuild(url, version)
+    }
+
     /** A copy installed by Play takes the app itself from Play; the page still updates here. */
     @JavascriptInterface
     fun openStore() {
