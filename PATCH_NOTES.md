@@ -4,6 +4,14 @@ What changed in each release, newest first. Everything here ships as a signed AP
 the same build as an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag.
 
+## 1.10.3 - UNote joins the list, and opens from it
+
+### New
+- **UNote is in the hub.** It sits at the bottom of the apps the hub lists, reading "Notes that
+  link themselves, behind a PIN", and tapping it opens it. UNote is a page rather than a Play
+  listing, so it opens in the phone's browser instead of behind an install button - there is
+  nothing to download and nothing to update.
+
 ## 1.10.2 - no more asking for an update you already have
 
 ### Fixed
