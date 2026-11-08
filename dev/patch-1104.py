@@ -119,7 +119,7 @@ def write(rel, text):
 
 def add_imports(src):
     need = ['import android.app.DownloadManager', 'import android.content.Context',
-            'import android.os.Environment', 'import android.util.Log']
+            'import android.net.Uri', 'import android.os.Environment', 'import android.util.Log']
     missing = [n for n in need if n not in src]
     if not missing:
         return src
@@ -158,8 +158,10 @@ def main_after(src):
         if anchor not in src:
             raise SystemExit('applyPage is not where it was')
         src = src.replace(anchor, DOWNLOAD_BUILD + anchor, 1)
-    # Whatever the tree looks like, the four imports the download needs are there before the file is
-    # written - a missing one is a compile error the release run would only find after an APK build.
+    # Whatever the tree looks like, every import the download needs is there before the file is
+    # written - a missing one is a compile error the release run only finds after an APK build.
+    # 1.10.4 shipped without Uri and the release stopped at compileReleaseKotlin: the download has
+    # to parse one address, and it was the one import left out.
     return add_imports(src)
 
 
