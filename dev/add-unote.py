@@ -8,7 +8,7 @@ import io
 import sys
 
 PAGE = 'app/src/main/assets/index.html'
-URL = 'https://site-e28e804444934263a1f0838974d59f45.freebuff.page/'
+URL = 'https://anekthegreat.github.io/UNote/'
 lines = io.open(PAGE, encoding='utf-8').read().split('\n')
 
 if any("label: 'UNote'" in l for l in lines):
@@ -37,7 +37,7 @@ lines[n:n + 4] = [
     "    note: 'Five more, made the same way. Four open their Play listing, so what you install is the\\n' +",
     "      'same build Play keeps up to date - nothing here downloads or installs a package.\\n\\n' +",
     "      'UNote is the exception: it is a page, not a listing. Its row opens it in the phone\\'s own\\n' +",
-    "      'browser, where it can be added to the home screen. The rest open Play as they always did.\\n\\n' +",
+    "      'browser, where it can be added to the home screen. The APK is in its releases.\\n\\n' +",
     "      'A listing that is not up yet answers with Play\\'s own not-found page, so a row opens\\n' +",
     "      'nothing at all until the app it names is published.',",
 ]
