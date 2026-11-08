@@ -94,6 +94,15 @@ object Apps {
             packages = listOf("app.ujournal"),
             aliases = listOf("UJournal", "Journal")
         ),
+        HubApp(
+            id = "unote",
+            title = "UNote",
+            // UNote is built out of its own repository, and its applicationId has been app.unote
+            // from the first commit - the same id its APK is signed under. The name is the fallback,
+            // for a phone that carries the APK under an id this card does not know.
+            packages = listOf("app.unote"),
+            aliases = listOf("UNote")
+        ),
         // The two slots. A slot is not built for anything: it carries no package names and no
         // aliases, so it resolves to nothing until an app is chosen by hand - which is what an
         // empty slot should do - and from then on it opens whatever that app is. Nothing about a

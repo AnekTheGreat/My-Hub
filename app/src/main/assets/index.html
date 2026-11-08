@@ -107,7 +107,7 @@ footer{flex:0 0 auto;text-align:center;color:var(--chevron);font-size:11px;paddi
 <script>
 /* The screen My Hub draws. The version here is compared with the release's before a page update is
    applied, and release.yml refuses to publish unless it matches the version in build.gradle.kts. */
-var HUB_PAGE = "1.10.5";
+var HUB_PAGE = "1.10.6";
 
 var native = window.Hub || null;
 var S = null;
@@ -450,11 +450,11 @@ function about(){
   sheet('How the hub finds your apps', {
     note:
       'A card opens the app it found on this phone.\n\n' +
-      'The four cards the hub was built with look for their apps by package name, and if that ' +
+      'The five cards the hub was built with look for their apps by package name, and if that ' +
       'finds nothing they look for an app whose own name matches. SideCut\'s card opens the ' +
       'release build, com.SideCut.myapp, and knows the name the phone shows it under, SideCut ' +
       'Play; MeasureT installs from the Compass-EDC repository as com.CompassEDC.myapp; ' +
-      'UJournal installs from the Journal repository as app.ujournal.\n\n' +
+      'UJournal installs from the Journal repository as app.ujournal; UNote installs from its own repository as app.unote.\n\n' +
       'Slot 1 and Slot 2 are yours: they hold nothing until you choose an app for them, and then ' +
       'they take that app\'s icon and name. Tap an empty slot to choose, or hold one that is ' +
       'filled to change it or empty it again.\n\n' +

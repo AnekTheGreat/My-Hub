@@ -1,3 +1,15 @@
+## 1.10.6 - 8 November 2026
+
+UNote is one of the apps the hub carries, not just a row on a list.
+
+- **A fifth card.** The screen was built with four cards - FamTM, SideCut, MeasureT and UJournal -
+  and UNote was only ever on the Other apps shelf. A phone with UNote installed had nothing to tap
+  that opened it. There is a UNote card now, and the screen counts it.
+- **It finds the app the APK is signed under.** The card looks for `app.unote`, and falls back to
+  the name the phone shows it by, so a build whose id differs is still found.
+- **The explanation matches.** How the hub finds your apps says five cards, and names UNote's
+  package beside the others.
+
 ## 1.10.5 - 8 November 2026
 
 The other apps list every other app, with the names everyone else uses.
