@@ -1,0 +1,48 @@
+name: Apply a patch
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The version the patch ships, e.g. 1.0.3
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-patch
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run it
+        env:
+          V: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          N=$(printf "%s" "$V" | tr -d ".")
+          P="dev/patch-$N.py"
+          test -f "$P" || { echo "::error::$P is not in the tree"; exit 1; }
+          if python3 "$P" --check > /dev/null 2>&1; then
+            echo "$V is already in the tree - nothing to apply."
+            exit 0
+          fi
+          python3 "$P"
+          python3 "$P" --check
+      - name: Commit
+        run: |
+          set -euo pipefail
+          git config user.name "patch bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && { echo "nothing changed"; exit 0; }
+          git commit -m "Release ${{ inputs.version }}"
+          git push
