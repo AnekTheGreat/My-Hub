@@ -1,3 +1,15 @@
+## 1.10.5 - 8 November 2026
+
+The other apps list every other app, with the names everyone else uses.
+
+- **MeasureT, not Compass EDC.** This list called it Compass EDC while the app itself, its Play
+  listing and every other shelf in the family call it MeasureT. It says MeasureT now.
+- **Five rows, all five apps.** FamTM, SideCut, MeasureT, UJournal and UNote - the same five, in the
+  same order, that the other apps list.
+- **Rows that answer.** Four of the five store pages this list pointed at do not exist yet, so those
+  rows opened Play's not-found page. FamTM and UJournal now open the release they install from,
+  MeasureT and UNote open their own page, and SideCut keeps its live listing.
+
 # Patch notes
 
 What changed in each release, newest first. Everything here ships as a signed APK for a phone and

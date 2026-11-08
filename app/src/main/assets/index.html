@@ -107,7 +107,7 @@ footer{flex:0 0 auto;text-align:center;color:var(--chevron);font-size:11px;paddi
 <script>
 /* The screen My Hub draws. The version here is compared with the release's before a page update is
    applied, and release.yml refuses to publish unless it matches the version in build.gradle.kts. */
-var HUB_PAGE = "1.10.4";
+var HUB_PAGE = "1.10.5";
 
 var native = window.Hub || null;
 var S = null;
@@ -385,14 +385,14 @@ function settings(){
    Play listings rather than repositories, because a listing is where an app is installed from and
    updated from; the package name in each one is what the app was published under. */
 var OTHERS = [
-  { label: 'UJournal', sub: 'A journal that opens on a shelf of books',
-    url: 'https://play.google.com/store/apps/details?id=app.ujournal' },
   { label: 'FamTM', sub: 'The family tree in your pocket',
-    url: 'https://play.google.com/store/apps/details?id=com.FamTM.app' },
+    url: 'https://github.com/AnekTheGreat/FamTM/releases/latest' },
   { label: 'SideCut', sub: 'A music player with its own equaliser',
     url: 'https://play.google.com/store/apps/details?id=com.SideCut.myapp' },
-  { label: 'Compass EDC', sub: 'Compass, elevation, GPS and a level',
-    url: 'https://play.google.com/store/apps/details?id=com.CompassEDC.myapp' },
+  { label: 'MeasureT', sub: 'Elevation, location, a level and a converter',
+    url: 'https://anekthegreat.github.io/Compass-EDC/' },
+  { label: 'UJournal', sub: 'A journal for the days you write down',
+    url: 'https://github.com/AnekTheGreat/Journal/releases/latest' },
   { label: 'UNote', sub: 'Notes that link themselves, behind a PIN',
     url: 'https://anekthegreat.github.io/UNote/' }
 ];
@@ -407,12 +407,10 @@ function others(){
   });
   sheet('Other apps', {
     rows: rows,
-    note: 'Five more, made the same way. Four open their Play listing, so what you install is the\n' +
-      'same build Play keeps up to date - nothing here downloads or installs a package.\n\n' +
-      'UNote is the exception: it is a page, not a listing. Its row opens it in the phone\'s own\n' +
-      'browser, where it can be added to the home screen. The APK is in its releases.\n\n' +
-      'A listing that is not up yet answers with Play\'s own not-found page, so a row opens\n' +
-      'nothing at all until the app it names is published.',
+    note: 'The five apps beside this one, in the same order every app in the family lists them.\n\n' +
+      'SideCut opens its Play listing. FamTM, MeasureT, UJournal and UNote open the page or the\n' +
+      'release they install from, in the phone\'s own browser: one tap, and never a package that\n' +
+      'installs itself.',
     buttons: [{ label: 'Close', run: closeSheet }]
   });
 }
