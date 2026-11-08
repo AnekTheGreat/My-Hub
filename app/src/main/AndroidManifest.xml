@@ -62,6 +62,7 @@
         <package android:name="com.SideCut.myapp.full" />
         <package android:name="com.CompassEDC.myapp" />
         <package android:name="app.ujournal" />
+        <package android:name="app.unote" />
     </queries>
 
     <application

@@ -1,3 +1,15 @@
+## 1.10.7 - 8 November 2026
+
+UNote is one of the hub's own apps, asked for the same way as the other four.
+
+- **The phone is asked for it by name.** From Android 11 an app cannot see another app unless
+  it says, in its manifest, which apps it wants to see. That list named four of the five apps
+  the hub ships cards for; UNote was the one missing, so its card could sit on a phone that
+  had UNote installed and still say there was nothing to open. `app.unote` is in the list
+  now, beside `app.ujournal` and the rest.
+- **The paper matches the app.** The card arrived in 1.10.6, but the README and the Play
+  description still counted four cards and named four apps. Both name UNote now.
+
 ## 1.10.6 - 8 November 2026
 
 UNote is one of the apps the hub carries, not just a row on a list.

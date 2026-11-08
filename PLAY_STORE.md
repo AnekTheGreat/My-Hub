@@ -48,9 +48,9 @@ My Hub is a launcher for the handful of apps you actually use: one navy screen o
 rounded cards, each with an icon and a name and nothing else. Tap a card and the app
 opens. Come back and the list is waiting where you left it.
 
-FOUR CARDS AND TWO SLOTS
+FIVE CARDS AND TWO SLOTS
 The hub ships with cards for the apps it was built alongside — FamTM, SideCut,
-MeasureT and UJournal — and two empty slots for anything else. A card looks for its
+MeasureT, UJournal and UNote — and two empty slots for anything else. A card looks for its
 app by package name and, if that is not there, by the name it is shown under. Press
 and hold any card to point it at a different app, or to empty a slot again.
 

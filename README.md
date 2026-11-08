@@ -10,6 +10,7 @@ yours are your apps instead of games — and the last two cards are slots you fi
 | **SideCut** | the SideCut **release** build — the Play build, `com.SideCut.myapp` |
 | **MeasureT** | the MeasureT APK |
 | **UJournal** | the UJournal APK |
+| **UNote** | the UNote APK |
 | **Slot 1**, **Slot 2** | whatever app you put in them |
 
 Tapping a card opens that app. Coming back to the hub puts you back at the top of the list, ready
@@ -68,6 +69,7 @@ The hub ships knowing which app each card is meant to be, and asks your phone fo
 | SideCut | `com.SideCut.myapp` (the release build) | looks for an app named "SideCut Play" or "SideCut" |
 | MeasureT | `com.CompassEDC.myapp` | looks for an app named "MeasureT", "Measure T", "Measure", "Compass EDC" or "CompassEDC" |
 | UJournal | `app.ujournal` | looks for an app named "UJournal" or "Journal" |
+| UNote | `app.unote` | looks for an app named "UNote" |
 
 SideCut is published twice from one pipeline, and the two builds are made to be installed side by
 side: the Play build is `com.SideCut.myapp` and named *SideCut Play*, and the sideloaded full build
@@ -79,7 +81,7 @@ MeasureT is built out of the Compass-EDC repository, and the applicationId that 
 Capacitor config gives the APK is `com.CompassEDC.myapp` — so that is the package its card looks
 for. The name it shipped under before it was renamed, *Compass EDC*, is looked for too, so a phone
 still carrying that install opens from the same card rather than from one that says there is
-nothing there. UJournal installs from the Journal repository as `app.ujournal`.
+nothing there. UJournal installs from the Journal repository as `app.ujournal`, and UNote from its own repository as `app.unote`.
 
 FamTM installs as `com.FamTM.app`. It was `com.familytree.app` until that turned out to be another
 listing's package name — a name only ever belongs to one app — so the card looks for the new id and
@@ -145,13 +147,13 @@ update theirs, and without an installer ever appearing:
 From API 30 the system hides other packages from an app unless the app says, in its manifest, which
 ones it wants to see. Without that, `getLaunchIntentForPackage()` and `queryIntentActivities()` do
 not fail — they quietly answer with nothing, which is how every card first came up saying *Not
-installed* on a phone that had all four apps on it, and how a card that had found its app still
+installed* on a phone that had all five apps on it, and how a card that had found its app still
 could not start it.
 
 The manifest therefore carries a `<queries>` block that declares the launcher signature
 (`MAIN` + `LAUNCHER`), which makes every app with a launcher icon visible — exactly the set the cards
-and the *Choose the app…* list are built from — plus the package names outright, both SideCut ids
-included. It is the purpose-built alternative to `QUERY_ALL_PACKAGES`, which asks for far more than
+and the *Choose the app…* list are built from — plus the package names outright, both SideCut ids and
+`app.unote` included. It is the purpose-built alternative to `QUERY_ALL_PACKAGES`, which asks for far more than
 this needs.
 
 ## Time on each app
