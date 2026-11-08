@@ -19,6 +19,7 @@ import android.app.DownloadManager
 import android.content.Context
 import android.os.Environment
 import android.util.Log
+import android.net.Uri
 
 // The palette lives with the page now, and these two are only what shows while it loads and the
 // strips behind the system bars: the same navy of OnePlus Game Space.
